@@ -1,0 +1,9 @@
+<library path="TechControlInterface">
+  <class name="TechControlInterface/TechSystemInterface"
+         type="TechControlInterface::TechSystemInterface"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      A ros2_control interface for Tech motor drivers.
+    </description>
+  </class>
+</library>
