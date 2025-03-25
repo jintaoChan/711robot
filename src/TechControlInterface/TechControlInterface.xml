@@ -1,6 +1,6 @@
 <library path="TechControlInterface">
-  <class name="TechControlInterface/TechSystemInterface"
-         type="TechControlInterface::TechSystemInterface"
+  <class name="TechControlInterface/TechHardwareInterface"
+         type="TechControlInterface::TechHardwareInterface"
          base_class_type="hardware_interface::SystemInterface">
     <description>
       A ros2_control interface for Tech motor drivers.
@@ -10,7 +10,7 @@
         type="TechControlInterface::TechController"
         base_class_type="controller_interface::ControllerInterface">
   <description>
-    Robot controller plugin for 6 dof robot tutorial.
+    Robot TechController plugin for 6 dof robot tutorial.
   </description>
 </class>
 </library>

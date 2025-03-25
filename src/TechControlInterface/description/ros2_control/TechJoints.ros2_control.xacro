@@ -5,7 +5,7 @@
 
     <ros2_control name="${name}" type="system">
       <hardware>
-        <plugin>TechControlInterface/TechSystemInterface</plugin>
+        <plugin>TechControlInterface/TechHardwareInterface</plugin>
 
         <param name="eth_device">${eth_device}</param>
       </hardware>
