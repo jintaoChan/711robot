@@ -3,15 +3,13 @@
   <xacro:arg name="prefix" default="" />
   <xacro:arg name="eth_device" default="enp4s0" />
 
-  <xacro:include filename="$(find TechControlInterface)/urdf/robot.xacro" />
+  <xacro:include filename="$(find TechControlInterface)/urdf/robot_description.urdf.xacro" />
 
   <xacro:include filename="$(find TechControlInterface)/ros2_control/TechJoints.ros2_control.xacro" />
 
+  <!-- create link fixed to the "world" -->
   <link name="world"/>
-
-  <xacro:TechRobot parent="world" prefix="$(arg prefix)">
-    <origin xyz="0 0 0" rpy="0 0 0" />
-  </xacro:TechRobot>
+  <xacro:TechRobot/>
 
   <xacro:TechJoints_ros2_control name="TechJointsRos2Control" prefix="$(arg prefix)" eth_device="$(arg eth_device)" />
 

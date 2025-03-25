@@ -8,9 +8,13 @@ endif()
 # find dependencies
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   hardware_interface
+  controller_interface
   pluginlib
   rclcpp
   rclcpp_lifecycle
+  trajectory_msgs
+  sensor_msgs
+  std_msgs
 )
 # Specify the required version of ros2_control
 find_package(controller_manager 4.0.0)
@@ -34,17 +38,20 @@ endforeach()
 add_library(${PROJECT_NAME}
   SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/hardware/TechInterface.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/controller/controller.cpp
 )
 
 
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/hardware/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/controller/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
 )
 ament_target_dependencies( ${PROJECT_NAME}  ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 # Export hardware plugins
 pluginlib_export_plugin_description_file(hardware_interface TechControlInterface.xml)
+pluginlib_export_plugin_description_file(controller_interface TechControlInterface.xml)
 
 
 target_link_libraries(${PROJECT_NAME} ${soem})
@@ -69,6 +76,9 @@ install(
 )
 install(DIRECTORY meshes/
   DESTINATION share/${PROJECT_NAME}/meshes
+)
+install(DIRECTORY rviz/ 
+  DESTINATION share/${PROJECT_NAME}/rviz
 )
 
 install(TARGETS ${PROJECT_NAME}

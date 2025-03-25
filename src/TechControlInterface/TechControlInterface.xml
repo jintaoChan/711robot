@@ -6,4 +6,11 @@
       A ros2_control interface for Tech motor drivers.
     </description>
   </class>
+  <class name="TechControlInterface/TechController"
+        type="TechControlInterface::TechController"
+        base_class_type="controller_interface::ControllerInterface">
+  <description>
+    Robot controller plugin for 6 dof robot tutorial.
+  </description>
+</class>
 </library>

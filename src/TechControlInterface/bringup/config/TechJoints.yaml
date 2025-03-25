@@ -5,12 +5,16 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-forward_position_controller:
+controller:
   ros__parameters:
-    type: forward_command_controller/ForwardCommandController
+    type: TechControlInterface/TechController
     joints:
       - joint2
       - joint3
       - joint4
       - joint5
-    interface_name: position
+    command_interfaces:
+      - position
+
+    state_interfaces:
+      - position

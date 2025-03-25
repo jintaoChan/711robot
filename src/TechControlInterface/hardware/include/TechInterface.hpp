@@ -36,131 +36,137 @@
 
 #include "ethercat.h"
 
-namespace TechControlInterface {
+namespace TechControlInterface
+{
 
 #pragma pack(1)
-typedef struct {
-    int32 PositionActualValue;
-    uint32 DigitalInputs;
-    uint16 StatusWord;
+    typedef struct
+    {
+        int32 PositionActualValue;
+        uint32 DigitalInputs;
+        uint16 StatusWord;
 
-} InTechDrive;
+    } InTechDrive;
 
-typedef struct {
-    int32 TargetPosition;
-    uint32 SubIndex001;
-    uint16 ControlWord;
+    typedef struct
+    {
+        int32 TargetPosition;
+        uint32 SubIndex001;
+        uint16 ControlWord;
 
-} OutTechDrive;
+    } OutTechDrive;
 #pragma pack()
 
-class TechSystemInterface : public hardware_interface::SystemInterface {
-public:
-    RCLCPP_SHARED_PTR_DEFINITIONS(TechSystemInterface)
+    class TechSystemInterface : public hardware_interface::SystemInterface
+    {
+    public:
+        RCLCPP_SHARED_PTR_DEFINITIONS(TechSystemInterface)
 
-    ~TechSystemInterface();
+        ~TechSystemInterface();
 
-    
-    hardware_interface::CallbackReturn
-    on_init(const hardware_interface::HardwareInfo &info) override;
+        hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo &info) override;
+        
+        hardware_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) override;
 
-    hardware_interface::return_type prepare_command_mode_switch(
-        const std::vector<std::string> &start_interfaces,
-        const std::vector<std::string> &stop_interfaces) override;
 
-    hardware_interface::CallbackReturn
-    on_activate(const rclcpp_lifecycle::State &previous_state) override;
+        hardware_interface::return_type prepare_command_mode_switch(
+            const std::vector<std::string> &start_interfaces,
+            const std::vector<std::string> &stop_interfaces) override;
 
-    hardware_interface::CallbackReturn
-    on_deactivate(const rclcpp_lifecycle::State &previous_state) override;
+        hardware_interface::CallbackReturn
+        on_activate(const rclcpp_lifecycle::State &previous_state) override;
 
-    hardware_interface::return_type read(const rclcpp::Time &time,
-                                        const rclcpp::Duration &period) override;
+        hardware_interface::CallbackReturn
+        on_deactivate(const rclcpp_lifecycle::State &previous_state) override;
 
-    hardware_interface::return_type
-    write(const rclcpp::Time &time, const rclcpp::Duration &period) override;
+        hardware_interface::return_type read(const rclcpp::Time &time,
+                                             const rclcpp::Duration &period) override;
 
-    std::vector<hardware_interface::StateInterface>
-    export_state_interfaces() override;
+        hardware_interface::return_type
+        write(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
-    std::vector<hardware_interface::CommandInterface>
-    export_command_interfaces() override;
+        // std::vector<hardware_interface::StateInterface>
+        // export_state_interfaces() override;
 
-    /**
-     * \return logger of the SystemInterface.
-     */
-    rclcpp::Logger get_logger() const { return *m_Logger; }
+        // std::vector<hardware_interface::CommandInterface>
+        // export_command_interfaces() override;
 
-private:
-    void AddTimespec(struct timespec *ts, int64 addtime);
-    void ECSync(int64 reftime, int64 cycletime, int64 *offsettime);
+        /**
+         * \return logger of the SystemInterface.
+         */
+        rclcpp::Logger get_logger() const { return *m_Logger; }
 
-private:
-    /**
-     * @brief Error checking. Typically runs in a separate thread.
-     */
-    OSAL_THREAD_FUNC ecatCheck(void *ptr);
+    private:
+        void AddTimespec(struct timespec *ts, int64 addtime);
+        void ECSync(int64 reftime, int64 cycletime, int64 *offsettime);
 
-    /**
-     * @brief Somanet control loop runs in a dedicated thread
-     * This steps through several states to get to Operational, if needed
-     * @param inNomalOPMode A flag to the main thread that the Somanet state
-     * machine is ready
-     */
-    void somanetCyclicLoop(std::atomic<bool> &inNomalOPMode);
+    private:
+        /**
+         * @brief Error checking. Typically runs in a separate thread.
+         */
+        OSAL_THREAD_FUNC ecatCheck(void *ptr);
 
-    std::optional<std::thread> m_SomanetControlThread;
+        /**
+         * @brief Somanet control loop runs in a dedicated thread
+         * This steps through several states to get to Operational, if needed
+         * @param inNomalOPMode A flag to the main thread that the Somanet state
+         * machine is ready
+         */
+        void somanetCyclicLoop(std::atomic<bool> &inNomalOPMode);
 
-    size_t m_NumJoints;
+        std::optional<std::thread> m_SomanetControlThread;
 
-    // Objects for logging
-    std::shared_ptr<rclcpp::Logger> m_Logger;
+        size_t m_NumJoints;
 
-    // Store the commands for the simulated robot
-    std::vector<double> m_HWCommandsPositions;
-    std::vector<double> m_HWCommandsVelocities;
-    std::vector<double> m_HWCommandsEfforts;
-    // m_HWCcommandsQuickStop is never actually used, just a placeholder for compilation
-    std::vector<double> m_HWCcommandsQuickStop;
-    std::vector<double> m_HWStatesPositions;
-    std::vector<double> m_HWStatesVelocities;
-    std::vector<double> m_HWStatesAccelerations;
-    std::vector<double> m_HWStatesEfforts;
-    // Threadsafe deques to share commands with somanet control loop thread
-    std::deque<std::atomic<double>> m_ThreadsafeCommandsEfforts;
-    std::deque<std::atomic<double>> m_ThreadsafeCommandsVelocities;
-    std::deque<std::atomic<double>> m_ThreadsafeCommandsPositions;
+        // Objects for logging
+        std::shared_ptr<rclcpp::Logger> m_Logger;
 
-    // Enum defining current control level
-    enum class ControlLevelEnum : std::uint8_t {
-        UNDEFINED = 0,
-        EFFORT = 1, // aka torque
-        VELOCITY = 2,
-        POSITION = 3,
-        QUICK_STOP = 4,
+        // Store the commands for the simulated robot
+        std::vector<double> m_HWCommandsPositions;
+        std::vector<double> m_HWCommandsVelocities;
+        std::vector<double> m_HWCommandsEfforts;
+        // m_HWCcommandsQuickStop is never actually used, just a placeholder for compilation
+        std::vector<double> m_HWCcommandsQuickStop;
+        std::vector<double> m_HWStatesPositions;
+        std::vector<double> m_HWStatesVelocities;
+        std::vector<double> m_HWStatesAccelerations;
+        std::vector<double> m_HWStatesEfforts;
+        // Threadsafe deques to share commands with somanet control loop thread
+        std::deque<std::atomic<double>> m_ThreadsafeCommandsEfforts;
+        std::deque<std::atomic<double>> m_ThreadsafeCommandsVelocities;
+        std::deque<std::atomic<double>> m_ThreadsafeCommandsPositions;
+
+        // Enum defining current control level
+        enum class ControlLevelEnum : std::uint8_t
+        {
+            UNDEFINED = 0,
+            EFFORT = 1, // aka torque
+            VELOCITY = 2,
+            POSITION = 3,
+            QUICK_STOP = 4,
+        };
+
+        // Active control mode for each actuator
+        std::vector<ControlLevelEnum> m_ControlLevel;
+
+        // For SOEM
+        OSAL_THREAD_HANDLE m_EcatErrorThread;
+        char m_IOMap[4096];
+        int m_CycleTime{5000};
+        int64 m_TOff;
+        int64 m_GlobalDelta;
+
+        std::vector<InTechDrive *> m_InTechDrive;
+        std::mutex m_InSomanetMtx;
+        std::vector<OutTechDrive *> m_OutTechDrive;
+
+        std::vector<uint32_t> m_EncoderResolutions;
+
+        // For coordination between threads
+        volatile std::atomic<int> m_WKC;
+        std::atomic<int> m_ExpectedWKC;
+        std::atomic<bool> m_NeedLF = false;
+        std::atomic<bool> m_InNomalOPMode = false;
     };
-
-    // Active control mode for each actuator
-    std::vector<ControlLevelEnum> m_ControlLevel;
-
-    // For SOEM
-    OSAL_THREAD_HANDLE m_EcatErrorThread;
-    char m_IOMap[4096];
-    int m_CycleTime{500};
-    int64 m_TOff;
-    int64 m_GlobalDelta;
-
-    std::vector<InTechDrive*> m_InTechDrive;
-    std::mutex m_InSomanetMtx;
-    std::vector<OutTechDrive*> m_OutTechDrive;
-
-    std::vector<uint32_t> m_EncoderResolutions;
-
-    // For coordination between threads
-    volatile std::atomic<int> m_WKC;
-    std::atomic<int> m_ExpectedWKC;
-    std::atomic<bool> m_NeedLF = false;
-    std::atomic<bool> m_InNomalOPMode = false;
-};
 
 } // namespace TechControlInterface
