@@ -5,16 +5,31 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-TechController:
+TechPositionController:
   ros__parameters:
     type: TechControlInterface/TechController
     joints:
       - joint2
-      - joint3
-      - joint4
-      - joint5
+      # - joint3
+      # - joint4
+      # - joint5
     command_interfaces:
       - position
 
     state_interfaces:
       - position
+
+TechVelocityController:
+  ros__parameters:
+    type: TechControlInterface/TechController
+    joints:
+      - joint2
+      # - joint3
+      # - joint4
+      # - joint5
+    command_interfaces:
+      - velocity
+
+    state_interfaces:
+      - velocity
+

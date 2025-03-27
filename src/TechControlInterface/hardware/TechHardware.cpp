@@ -45,6 +45,97 @@ namespace TechControlInterface
 		constexpr uint NSEC_PER_SEC{1000000000};
 	} // namespace
 
+	int PDOsetup(uint16 slave)
+	{
+		int retval = 0;
+		uint8 zeroMap = 0;
+		uint16 clearVal = 0x0000;
+		uint32 mapObject;
+		uint16 RPDOMap = 0x1c12;
+		uint16 TPDOMap = 0x1c13;
+		uint16 RPDOIdx = 0x1607;
+		uint16 TPDOIdx = 0x1A07;
+		uint16 RPDOMapIdx = 0x0001;
+		uint16 TPDOMapIdx = 0x0001;
+		uint8 mapCount = 4;
+		//........................................................................................
+		// Map RXPOD
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x00, FALSE, sizeof(zeroMap), &zeroMap, EC_TIMEOUTSAFE);
+
+		// 2. Configure new PDO mapping
+		// Control Word
+		mapObject = 0x60400010; // 0x6040:0 Control Word, 16 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x01, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Mode of Operation
+		mapObject = 0x60600008; // 0x6060:0 Mode of Operation, 8 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x02, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Target Position
+		mapObject = 0x607A0020; // 0x607A:0 Target Position, 32 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x03, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Profile Velocity
+		mapObject = 0x60FF0020; // 0x60FF:0 Target Velocity, 32 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x04, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Set number of mapped objects
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x00, FALSE, sizeof(mapCount), &mapCount, EC_TIMEOUTSAFE);
+
+		// 4. Configure RXPDO allocation
+		clearVal = 0x0000; // Clear the mapping
+		retval += ec_SDOwrite(slave, RPDOMap, 0x00, FALSE, sizeof(clearVal), &clearVal, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, RPDOMap, 0x01, FALSE, sizeof(RPDOIdx), &RPDOIdx, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, RPDOMap, 0x00, FALSE, sizeof(RPDOMapIdx), &RPDOMapIdx, EC_TIMEOUTSAFE);
+
+		//........................................................................................
+		// Map TXPOD
+		// First, clear the TXPDO mapping
+		clearVal = 0x0000;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x00, FALSE, sizeof(clearVal), &clearVal, EC_TIMEOUTSAFE);
+
+		// Configure TXPDO mapping entries
+		// Status Word (0x6041:0, 16 bits)
+		retval = 0;
+		mapObject = 0x60410010;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x01, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Modes of Operation Display (0x6061:0, 8 bits)
+		mapObject = 0x60610008;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x02, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Position Actual Value (0x6064:0, 32 bits)
+		mapObject = 0x60640020;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x03, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Velocity Actual Value (0x60FD:0, 32 bits)
+		mapObject = 0x606C0020;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x04, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Set the number of mapped objects (4 objects)
+		mapCount = 4;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x00, FALSE, sizeof(mapCount), &mapCount, EC_TIMEOUTSAFE);
+
+		// Configure TXPDO assignment
+		// First, clear the assignment
+		clearVal = 0x0000;
+		retval += ec_SDOwrite(slave, TPDOMap, 0x00, FALSE, sizeof(clearVal), &clearVal, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, TPDOMap, 0x01, FALSE, sizeof(TPDOIdx), &TPDOIdx, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, TPDOMap, 0x00, FALSE, sizeof(TPDOMapIdx), &TPDOMapIdx, EC_TIMEOUTSAFE);
+
+		while (EcatError)
+			printf("%s", ec_elist2string());
+
+		if (retval < 0)
+		{
+			printf("TXPDO Mapping failed\n");
+			return (-1);
+		}
+
+		printf("slave %d set, retval = %d\n", slave, retval);
+		return 1;
+	}
+
 	hardware_interface::CallbackReturn TechHardwareInterface::on_init(
 		const hardware_interface::HardwareInfo &info)
 	{
@@ -57,13 +148,7 @@ namespace TechControlInterface
 		m_NumJoints = info_.joints.size();
 		RCLCPP_INFO(get_logger(), "number of joints: %d", (int)m_NumJoints);
 
-		m_TargetPosition.resize(m_NumJoints);
-		for (auto &position : m_TargetPosition)
-		{
-			position.store(0);
-		}
-		m_ControlLevel.resize(m_NumJoints, ControlLevelEnum::UNDEFINED);
-
+		resetData();
 		for (const hardware_interface::ComponentInfo &joint : info_.joints)
 		{
 			if (!(joint.command_interfaces[0].name ==
@@ -106,7 +191,7 @@ namespace TechControlInterface
 			}
 		}
 
-		osal_thread_create(&m_EcatErrorThread, STACK128K, (void *)&TechHardwareInterface::ecatCheck, (void *)&ctime); // Create the EtherCAT check thread
+		// osal_thread_create(&m_EcatErrorThread, STACK128K, (void *)&TechHardwareInterface::ecatCheck, (void *)&ctime); // Create the EtherCAT check thread
 
 		// Ethercat initialization
 		// Define the interface name (e.g. eth0 or eno0) in the ros2_control.xacro
@@ -127,6 +212,11 @@ namespace TechControlInterface
 			RCLCPP_FATAL(get_logger(), "No ethercat slaves found!");
 			ec_close();
 			return hardware_interface::CallbackReturn::ERROR;
+		}
+
+		for (int i = 1; i <= ec_slavecount; i++)
+		{
+			ec_slave[i].PO2SOconfig = &PDOsetup;
 		}
 
 		ec_readstate(); // Read the state of the slaves
@@ -286,15 +376,10 @@ namespace TechControlInterface
 		std::vector<ControlLevelEnum> newModes = {};
 		for (const std::string &key : start_interfaces)
 		{
-			for (std::size_t i = 0; i < info_.joints.size(); i++)
+			for (std::size_t i = 0; i < m_NumJoints; i++)
 			{
-				if (key ==
-					info_.joints[i].name + "/" + hardware_interface::HW_IF_EFFORT)
-				{
-					newModes.push_back(ControlLevelEnum::EFFORT);
-				}
-				else if (key == info_.joints[i].name + "/" +
-									hardware_interface::HW_IF_VELOCITY)
+				if (key == info_.joints[i].name + "/" +
+							   hardware_interface::HW_IF_VELOCITY)
 				{
 					newModes.push_back(ControlLevelEnum::VELOCITY);
 				}
@@ -302,10 +387,6 @@ namespace TechControlInterface
 									hardware_interface::HW_IF_POSITION)
 				{
 					newModes.push_back(ControlLevelEnum::POSITION);
-				}
-				else if (key == info_.joints[i].name + "/quick_stop")
-				{
-					newModes.push_back(ControlLevelEnum::QUICK_STOP);
 				}
 			}
 		}
@@ -323,19 +404,15 @@ namespace TechControlInterface
 			return hardware_interface::return_type::ERROR;
 		}
 
+		resetData();
+
 		for (const std::string &key : start_interfaces)
 		{
 			for (std::size_t i = 0; i < m_NumJoints; i++)
 			{
 				if (key.find(info_.joints[i].name) != std::string::npos)
 				{
-					if (m_ControlLevel[i] != ControlLevelEnum::UNDEFINED)
-					{
-						// Something else is using the joint! Abort!
-						RCLCPP_FATAL(get_logger(),
-									 "Something else is using the joint. Abort!");
-						return hardware_interface::return_type::ERROR;
-					}
+
 					m_ControlLevel[i] = newModes[i];
 				}
 			}
@@ -352,8 +429,6 @@ namespace TechControlInterface
 		for (std::size_t i = 0; i < m_NumJoints; i++)
 		{
 		}
-
-		RCLCPP_INFO(get_logger(), "System successfully activated! Control level: %u", m_ControlLevel[0]);
 
 		return hardware_interface::CallbackReturn::SUCCESS;
 	}
@@ -376,8 +451,8 @@ namespace TechControlInterface
 	{
 		for (std::size_t i = 0; i < m_NumJoints; i++)
 		{
-			const auto namePos = info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION;
-			set_state(namePos, m_InTechDrive[i]->PositionActualValue);
+			m_InterfacePositionStates[i] = m_InTechDrive[i]->PositionActualValue;
+			m_InterfaceVelocityStates[i] = m_InTechDrive[i]->VelocityActualValue;
 			// RCLCPP_INFO(get_logger(), "setting %s: %d", std::string(namePos).c_str(), m_InTechDrive[i]->PositionActualValue);
 		}
 
@@ -388,18 +463,37 @@ namespace TechControlInterface
 	TechHardwareInterface::write(const rclcpp::Time & /*time*/,
 								 const rclcpp::Duration & /*period*/)
 	{
-		// This function doesn't do much.
-		// It's taken care of in separate thread, m_SomanetControlThread
-
-		// Share the commands with somanet control loop in a threadsafe way
 		for (std::size_t i = 0; i < m_NumJoints; i++)
 		{
-			const auto namePos = info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION;
-			RCLCPP_INFO(get_logger(), "%s Get command: %d", std::string(namePos).c_str(), (int)get_command(std::string(namePos)));
-			m_TargetPosition[i] = (int)get_command(namePos);
+			RCLCPP_INFO(get_logger(), "%s Get command: Pos: %d\tVel: %d\t", std::string(info_.joints[i].name).c_str(), m_InterfacePositionCommands[i], m_InterfaceVelocityCommands[i]);
+			// Thread of this function is seperated form loop. The command really write into motor drive in loop.
+			m_TargetPosition[i] = m_InterfacePositionCommands[i];
+			m_TargetVelocity[i] = m_InterfaceVelocityCommands[i];
 		}
 
 		return hardware_interface::return_type::OK;
+	}
+
+	std::vector<hardware_interface::StateInterface> TechHardwareInterface::export_state_interfaces()
+	{
+		std::vector<hardware_interface::StateInterface> state_interfaces;
+		for (std::size_t i = 0; i < m_NumJoints; i++)
+		{
+			state_interfaces.emplace_back(hardware_interface::StateInterface(info_.joints[i].name, hardware_interface::HW_IF_POSITION, &m_InterfacePositionStates[i]));
+			state_interfaces.emplace_back(hardware_interface::StateInterface(info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &m_InterfaceVelocityStates[i]));
+		}
+		return state_interfaces;
+	}
+
+	std::vector<hardware_interface::CommandInterface> TechHardwareInterface::export_command_interfaces()
+	{
+		std::vector<hardware_interface::CommandInterface> command_interfaces;
+		for (std::size_t i = 0; i < m_NumJoints; i++)
+		{
+			command_interfaces.emplace_back(hardware_interface::CommandInterface(info_.joints[i].name, hardware_interface::HW_IF_POSITION, &m_InterfacePositionCommands[i]));
+			command_interfaces.emplace_back(hardware_interface::CommandInterface(info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &m_InterfaceVelocityCommands[i]));
+		}
+		return command_interfaces;
 	}
 
 	TechHardwareInterface::~TechHardwareInterface()
@@ -518,6 +612,7 @@ namespace TechControlInterface
 
 		m_TOff = 0;
 		std::vector<int> repeats(ec_slavecount, 0);
+		std::vector<OutTechDrive> repeatData(ec_slavecount);
 		while (rclcpp::ok())
 		{
 			inNormalOPMode = true;
@@ -561,29 +656,33 @@ namespace TechControlInterface
 					{
 						if (repeats[i - 1] != 0)
 						{
+							*m_OutTechDrive[i - 1] = repeatData[i - 1];
 							--repeats[i - 1];
 						}
 						else if ((m_InTechDrive[i - 1]->StatusWord & 0x0008) == 0x0008)
 						{
 							m_OutTechDrive[i - 1]->ControlWord = 0x80;
+							repeatData[i - 1] = *m_OutTechDrive[i - 1];
 							repeats[i - 1] = 200;
 						}
 						else if ((m_InTechDrive[i - 1]->StatusWord & 0x0040) == 0x0040)
 						{
 							m_OutTechDrive[i - 1]->ControlWord = 0x6;
+							repeatData[i - 1] = *m_OutTechDrive[i - 1];
 							repeats[i - 1] = 200;
 						}
 						else if ((m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0031)
 						{
 							m_OutTechDrive[i - 1]->ControlWord = 0x7;
+							repeatData[i - 1] = *m_OutTechDrive[i - 1];
 							repeats[i - 1] = 200;
 						}
 						else if ((m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0033)
 						{
 							m_OutTechDrive[i - 1]->ControlWord = 0xF;
-							m_TargetPosition[i - 1] = m_InTechDrive[i - 1]->PositionActualValue;
-							m_OutTechDrive[i - 1]->TargetPosition = m_TargetPosition[i - 1];
-							set_command(std::string(info_.joints[i - 1].name + "/" + hardware_interface::HW_IF_POSITION).c_str(), m_TargetPosition[i - 1]);
+							repeatData[i - 1] = *m_OutTechDrive[i - 1];
+							RCLCPP_INFO(get_logger(), "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg velcmd: %d", get_command(std::string(info_.joints[i - 1].name + "/" + hardware_interface::HW_IF_POSITION)));
+							RCLCPP_INFO(get_logger(), "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg velcmd: %d", get_command(std::string(info_.joints[i - 1].name + "/" + hardware_interface::HW_IF_VELOCITY)));
 							repeats[i - 1] = 200;
 						}
 						else if ((m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0037)
@@ -591,14 +690,21 @@ namespace TechControlInterface
 							inNormalOPMode = true;
 							if (m_ControlLevel[i - 1] == ControlLevelEnum::POSITION)
 							{
-								m_OutTechDrive[i - 1]->TargetPosition = m_TargetPosition[i - 1];
+								if (!std::isnan(m_TargetPosition[i - 1]))
+								{
+									m_OutTechDrive[i - 1]->OpMode = 8;
+									m_OutTechDrive[i - 1]->TargetPosition = m_TargetPosition[i - 1];
+									m_OutTechDrive[i - 1]->ControlWord = 0x0F;
+								}
+							}
+							else if (m_ControlLevel[i - 1] == ControlLevelEnum::VELOCITY)
+							{
+								m_OutTechDrive[i - 1]->OpMode = 9;
+								m_OutTechDrive[i - 1]->TargetVelocity = m_TargetVelocity[i - 1];
 								m_OutTechDrive[i - 1]->ControlWord = 0x0F;
 							}
-							else if (m_ControlLevel[i - 1] == ControlLevelEnum::UNDEFINED)
-							{
-								m_OutTechDrive[i - 1]->ControlWord = 0x06;
-							}
 						}
+						// RCLCPP_INFO(get_logger(), "dddddddddddddddddddddddddddddddddddddStatus:%x", m_InTechDrive[i - 1]->StatusWord);
 					}
 				}
 				else
@@ -625,6 +731,29 @@ namespace TechControlInterface
 				// Monitor cycle time
 			}
 		}
+	}
+
+	void TechHardwareInterface::resetData()
+	{
+		m_TargetPosition.resize(m_NumJoints);
+		for (auto &val : m_TargetPosition)
+		{
+			val.store(std::numeric_limits<double>::quiet_NaN());
+		}
+		m_TargetVelocity.resize(m_NumJoints);
+		for (auto &val : m_TargetVelocity)
+		{
+			val.store(0);
+		}
+		m_ControlLevel.resize(m_NumJoints);
+		for (auto &val : m_ControlLevel)
+		{
+			val.store(ControlLevelEnum::UNDEFINED);
+		}
+		m_InterfacePositionCommands.resize(m_NumJoints);
+		m_InterfacePositionStates.resize(m_NumJoints);
+		m_InterfaceVelocityCommands.resize(m_NumJoints);
+		m_InterfaceVelocityStates.resize(m_NumJoints);
 	}
 
 	void TechHardwareInterface::AddTimespec(timespec *ts, int64 addtime)

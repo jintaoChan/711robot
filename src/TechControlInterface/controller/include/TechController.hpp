@@ -75,20 +75,24 @@ namespace TechControlInterface
         rclcpp::Time m_StartTime;
         sensor_msgs::msg::JointState m_JointStateMsg;
 
-        std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>>
-            m_JointPositionCommandInterface;
-        std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>>
-            m_JointPositionStateInterface;
+        std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> m_JointPositionCommandInterface;
+        std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> m_JointPositionStateInterface;
+        std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> m_JointVelocityCommandInterface;
+        std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> m_JointVelocityStateInterface;
 
         std::unordered_map<
             std::string, std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> *>
             m_CommandInterfaceMap = {
-                {"position", &m_JointPositionCommandInterface}};
+                {"position", &m_JointPositionCommandInterface},
+                {"velocity", &m_JointVelocityCommandInterface}
+            };
 
         std::unordered_map<
             std::string, std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> *>
             m_StateInterfaceMap = {
-                {"position", &m_JointPositionStateInterface}};
+                {"position", &m_JointPositionStateInterface},
+                {"velocity", &m_JointVelocityStateInterface}
+            };
     };
 
 } // namespace TechControlInterface

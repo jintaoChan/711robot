@@ -39,23 +39,24 @@
 namespace TechControlInterface
 {
 
-#pragma pack(1)
-    typedef struct
-    {
-        int32 PositionActualValue;
-        uint32 DigitalInputs;
+    #pragma pack(1)
+    // Structure for RXPDO (Control data sent to slave)
+    typedef struct {
+        uint16 ControlWord;
+        int8 OpMode;
+        int32 TargetPosition;
+        int32 TargetVelocity;
+    } OutTechDrive;
+    
+    // Structure for TXPDO (Status data received from slave)
+    typedef struct {
         uint16 StatusWord;
+        int8 OpModeDisplay;
+        int32 PositionActualValue;
+        int32 VelocityActualValue;
 
     } InTechDrive;
-
-    typedef struct
-    {
-        int32 TargetPosition;
-        uint32 SubIndex001;
-        uint16 ControlWord;
-
-    } OutTechDrive;
-#pragma pack()
+    #pragma pack()
 
     class TechHardwareInterface : public hardware_interface::SystemInterface
     {
@@ -81,13 +82,17 @@ namespace TechControlInterface
                                              const rclcpp::Duration &period) override;
 
         hardware_interface::return_type write(const rclcpp::Time &time, const rclcpp::Duration &period) override;
-
+        std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
+      
+        std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
+      
         /**
          * \return logger of the SystemInterface.
          */
         rclcpp::Logger get_logger() const { return *m_Logger; }
 
     private:
+        void resetData();
         void AddTimespec(struct timespec *ts, int64 addtime);
         void ECSync(int64 reftime, int64 cycletime, int64 *offsettime);
 
@@ -122,11 +127,13 @@ namespace TechControlInterface
             POSITION = 3,
             QUICK_STOP = 4,
         };
-
-        std::deque<std::atomic<int>> m_TargetPosition;
-
-        // Active control mode for each actuator
-        std::vector<ControlLevelEnum> m_ControlLevel;
+        std::vector<double> m_InterfacePositionCommands;
+        std::vector<double> m_InterfacePositionStates;
+        std::vector<double> m_InterfaceVelocityCommands;
+        std::vector<double> m_InterfaceVelocityStates;
+        std::deque<std::atomic<double>> m_TargetPosition;
+        std::deque<std::atomic<double>> m_TargetVelocity;
+        std::deque<std::atomic<ControlLevelEnum>> m_ControlLevel;
 
         // For SOEM
         OSAL_THREAD_HANDLE m_EcatErrorThread;

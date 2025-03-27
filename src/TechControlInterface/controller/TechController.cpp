@@ -34,6 +34,7 @@ namespace TechControlInterface
     controller_interface::CallbackReturn TechController::on_init()
     {
         m_Logger = std::make_shared<rclcpp::Logger>(rclcpp::get_logger("TechController"));
+        RCLCPP_INFO(get_logger(), "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu");
         // should have error handling
         m_JointNames = auto_declare<std::vector<std::string>>("joints", m_JointNames);
         m_CommandInterfaceTypes =
@@ -47,6 +48,7 @@ namespace TechControlInterface
     controller_interface::InterfaceConfiguration TechController::command_interface_configuration()
         const
     {
+        RCLCPP_INFO(get_logger(), "jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
         controller_interface::InterfaceConfiguration conf = {config_type::INDIVIDUAL, {}};
 
         conf.names.reserve(m_JointNames.size() * m_CommandInterfaceTypes.size());
@@ -63,6 +65,7 @@ namespace TechControlInterface
 
     controller_interface::InterfaceConfiguration TechController::state_interface_configuration() const
     {
+        RCLCPP_INFO(get_logger(), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         controller_interface::InterfaceConfiguration conf = {config_type::INDIVIDUAL, {}};
 
         conf.names.reserve(m_JointNames.size() * m_StateInterfaceTypes.size());
@@ -79,6 +82,7 @@ namespace TechControlInterface
 
     controller_interface::CallbackReturn TechController::on_configure(const rclcpp_lifecycle::State &)
     {
+        RCLCPP_INFO(get_logger(), "fffffffffffffffffffffffffffffffffffffffffffffffff");
         auto callback =
             [this](const std::shared_ptr<sensor_msgs::msg::JointState> msg) -> void
         {
@@ -88,19 +92,22 @@ namespace TechControlInterface
         
         m_JointStatePublisher = get_node()->create_publisher<sensor_msgs::msg::JointState>("tech_joint_state", 10);
         m_JointCommandSubscriber = get_node()->create_subscription<sensor_msgs::msg::JointState>("tech_joint_cmd", rclcpp::SystemDefaultsQoS(), callback);
-
         return CallbackReturn::SUCCESS;
     }
 
     controller_interface::CallbackReturn TechController::on_activate(const rclcpp_lifecycle::State &)
     {
+            RCLCPP_INFO(get_logger(), "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg poscmd: ");
         // clear out vectors in case of restart
         m_JointPositionCommandInterface.clear();
         m_JointPositionStateInterface.clear();
+        m_JointVelocityCommandInterface.clear();
+        m_JointVelocityStateInterface.clear();
 
         // assign command interfaces
         for (auto &interface : command_interfaces_)
         {
+
             m_CommandInterfaceMap[interface.get_interface_name()]->push_back(interface);
         }
 
@@ -122,8 +129,12 @@ namespace TechControlInterface
         {
             sensor_msgs::msg::JointState jointState;
             for(const auto& state : m_JointPositionStateInterface){
-                jointState.position.push_back((int)state.get().get_optional().value());
-                RCLCPP_INFO(get_logger(), "Getting %s: %d", std::string(state.get().get_name()).c_str(), (int)jointState.position.back());
+                jointState.position.push_back(state.get().get_optional().value());
+                // RCLCPP_INFO(get_logger(), "Getting Position\t%s: %d", std::string(state.get().get_name()).c_str(), jointState.position.back());
+            }
+            for(const auto& state : m_JointVelocityStateInterface){
+                jointState.velocity.push_back(state.get().get_optional().value());
+                // RCLCPP_INFO(get_logger(), "Getting Velocity\t%s: %d", std::string(state.get().get_name()).c_str(), jointState.velocity.back());
             }
             m_JointStatePublisher->publish(jointState);
         }
@@ -134,10 +145,15 @@ namespace TechControlInterface
         {
             m_StartTime = time;
             m_NewMsg = false;
-            for (size_t i = 0; i < m_JointPositionCommandInterface.size(); i++)
+            for (size_t i = 0; i < m_JointPositionCommandInterface.size(); ++i)
             {
-                m_JointPositionCommandInterface[i].get().set_value((int)m_JointStateMsg.position[i]);
-                RCLCPP_INFO(get_logger(), "Got Command:%d", (int)m_JointStateMsg.position[i]);
+                m_JointPositionCommandInterface[i].get().set_value(m_JointStateMsg.position[i]);
+                RCLCPP_INFO(get_logger(), "Got Position:%d", m_JointStateMsg.position[i]);
+            }
+            for (size_t i = 0; i < m_JointVelocityCommandInterface.size(); ++i)
+            {
+                m_JointVelocityCommandInterface[i].get().set_value(m_JointStateMsg.velocity[i]);
+                RCLCPP_INFO(get_logger(), "Got Velocity:%d", m_JointStateMsg.velocity[i]);
             }
         }
 

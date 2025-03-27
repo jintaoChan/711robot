@@ -1,6 +1,7 @@
 build
 install
 log
+scripts
 .vscode
 *.lib
 *.a
