@@ -97,6 +97,7 @@ def generate_launch_description():
         arguments=["--inactive",
                    "TechPositionController", 
                    "TechVelocityController", 
+                   "TechDisableController", 
                    "--param-file", robot_controllers],
     )
 

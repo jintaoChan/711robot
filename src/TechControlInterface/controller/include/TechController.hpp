@@ -79,12 +79,14 @@ namespace TechControlInterface
         std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> m_JointPositionStateInterface;
         std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> m_JointVelocityCommandInterface;
         std::vector<std::reference_wrapper<hardware_interface::LoanedStateInterface>> m_JointVelocityStateInterface;
+        std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> m_JointDisableCommandInterface;
 
         std::unordered_map<
             std::string, std::vector<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> *>
             m_CommandInterfaceMap = {
                 {"position", &m_JointPositionCommandInterface},
-                {"velocity", &m_JointVelocityCommandInterface}
+                {"velocity", &m_JointVelocityCommandInterface},
+                {"disable", &m_JointDisableCommandInterface}
             };
 
         std::unordered_map<

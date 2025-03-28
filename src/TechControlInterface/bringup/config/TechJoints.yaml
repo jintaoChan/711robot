@@ -10,26 +10,43 @@ TechPositionController:
     type: TechControlInterface/TechController
     joints:
       - joint2
-      # - joint3
-      # - joint4
-      # - joint5
+      - joint3
+      - joint4
+      - joint5
     command_interfaces:
       - position
 
     state_interfaces:
       - position
+      - velocity
 
 TechVelocityController:
   ros__parameters:
     type: TechControlInterface/TechController
     joints:
       - joint2
-      # - joint3
-      # - joint4
-      # - joint5
+      - joint3
+      - joint4
+      - joint5
     command_interfaces:
       - velocity
 
     state_interfaces:
+      - position
+      - velocity
+
+TechDisableController:
+  ros__parameters:
+    type: TechControlInterface/TechController
+    joints:
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+    command_interfaces:
+      - disable
+
+    state_interfaces:
+      - position
       - velocity
 

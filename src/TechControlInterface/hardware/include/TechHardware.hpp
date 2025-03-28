@@ -121,12 +121,11 @@ namespace TechControlInterface
         // Enum defining current control level
         enum class ControlLevelEnum : std::uint8_t
         {
-            UNDEFINED = 0,
-            EFFORT = 1, // aka torque
-            VELOCITY = 2,
-            POSITION = 3,
-            QUICK_STOP = 4,
+            DISABLE = 0,
+            VELOCITY = 1,
+            POSITION = 2,
         };
+        std::vector<double> m_InterfaceDisableCommands;
         std::vector<double> m_InterfacePositionCommands;
         std::vector<double> m_InterfacePositionStates;
         std::vector<double> m_InterfaceVelocityCommands;
@@ -138,7 +137,7 @@ namespace TechControlInterface
         // For SOEM
         OSAL_THREAD_HANDLE m_EcatErrorThread;
         char m_IOMap[4096];
-        int m_CycleTime{5000};
+        int m_CycleTime{1000};
         int64 m_TOff;
         int64 m_GlobalDelta;
 

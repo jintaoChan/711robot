@@ -148,7 +148,6 @@ namespace TechControlInterface
 		m_NumJoints = info_.joints.size();
 		RCLCPP_INFO(get_logger(), "number of joints: %d", (int)m_NumJoints);
 
-		resetData();
 		for (const hardware_interface::ComponentInfo &joint : info_.joints)
 		{
 			if (!(joint.command_interfaces[0].name ==
@@ -349,6 +348,7 @@ namespace TechControlInterface
 			m_InTechDrive.push_back((InTechDrive *)ec_slave[i].inputs);
 			m_OutTechDrive.push_back((OutTechDrive *)ec_slave[i].outputs);
 		}
+		resetData();
 
 		// Start the control loop, wait for it to reach normal operation mode
 		m_SomanetControlThread = std::thread(&TechHardwareInterface::somanetCyclicLoop, this,
@@ -359,12 +359,6 @@ namespace TechControlInterface
 
 	hardware_interface::CallbackReturn TechHardwareInterface::on_configure(const rclcpp_lifecycle::State &previous_state)
 	{
-		// reset values always when configuring hardware
-		for (const auto &[name, descr] : joint_state_interfaces_)
-		{
-			set_state(name, 0.0);
-		}
-
 		return CallbackReturn::SUCCESS;
 	}
 
@@ -374,34 +368,39 @@ namespace TechControlInterface
 	{
 		// Prepare for new command modes
 		std::vector<ControlLevelEnum> newModes = {};
-		for (const std::string &key : start_interfaces)
+
+		if (start_interfaces.empty())
 		{
-			for (std::size_t i = 0; i < m_NumJoints; i++)
+			RCLCPP_FATAL(get_logger(), "Empty activate interfaces is not allowed!");
+			return hardware_interface::return_type::ERROR;
+		}
+		else
+		{
+			// All joints must have the same command mode
+			if (!std::all_of(newModes.begin() + 1, newModes.end(), [&](ControlLevelEnum mode)
+							 { return mode == newModes[0]; }))
 			{
-				if (key == info_.joints[i].name + "/" +
-							   hardware_interface::HW_IF_VELOCITY)
+				RCLCPP_FATAL(get_logger(), "All joints must have the same command mode.");
+				return hardware_interface::return_type::ERROR;
+			}
+			for (const std::string &key : start_interfaces)
+			{
+				for (std::size_t i = 0; i < m_NumJoints; i++)
 				{
-					newModes.push_back(ControlLevelEnum::VELOCITY);
-				}
-				else if (key == info_.joints[i].name + "/" +
-									hardware_interface::HW_IF_POSITION)
-				{
-					newModes.push_back(ControlLevelEnum::POSITION);
+					if (key == info_.joints[i].name + "/" + hardware_interface::HW_IF_VELOCITY)
+					{
+						newModes.push_back(ControlLevelEnum::VELOCITY);
+					}
+					else if (key == info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION)
+					{
+						newModes.push_back(ControlLevelEnum::POSITION);
+					}
+					else if (key == info_.joints[i].name + "/" + "disable")
+					{
+						newModes.push_back(ControlLevelEnum::DISABLE);
+					}
 				}
 			}
-		}
-		// All joints must be given new command mode at the same time
-		if (!start_interfaces.empty() && (newModes.size() != m_NumJoints))
-		{
-			RCLCPP_FATAL(get_logger(), "All joints must be given a new mode at the same time.");
-			return hardware_interface::return_type::ERROR;
-		}
-		// All joints must have the same command mode
-		if (!std::all_of(newModes.begin() + 1, newModes.end(), [&](ControlLevelEnum mode)
-						 { return mode == newModes[0]; }))
-		{
-			RCLCPP_FATAL(get_logger(), "All joints must have the same command mode.");
-			return hardware_interface::return_type::ERROR;
 		}
 
 		resetData();
@@ -412,7 +411,6 @@ namespace TechControlInterface
 			{
 				if (key.find(info_.joints[i].name) != std::string::npos)
 				{
-
 					m_ControlLevel[i] = newModes[i];
 				}
 			}
@@ -439,7 +437,11 @@ namespace TechControlInterface
 
 		for (std::size_t i = 0; i < m_NumJoints; i++)
 		{
-			m_ControlLevel[i] = ControlLevelEnum::UNDEFINED;
+			m_ControlLevel[i] = ControlLevelEnum::DISABLE;
+			m_InterfacePositionStates[i] = std::numeric_limits<double>::quiet_NaN();
+			m_InterfaceVelocityStates[i] = 0;
+			m_TargetPosition[i] = std::numeric_limits<double>::quiet_NaN();
+			m_TargetVelocity[i] = 0;
 		}
 
 		return hardware_interface::CallbackReturn::SUCCESS;
@@ -453,7 +455,7 @@ namespace TechControlInterface
 		{
 			m_InterfacePositionStates[i] = m_InTechDrive[i]->PositionActualValue;
 			m_InterfaceVelocityStates[i] = m_InTechDrive[i]->VelocityActualValue;
-			// RCLCPP_INFO(get_logger(), "setting %s: %d", std::string(namePos).c_str(), m_InTechDrive[i]->PositionActualValue);
+			// RCLCPP_INFO(get_logger(), "setting %s Pos: %f, Vel: %f", std::string(info_.joints[i].name).c_str(), m_InterfacePositionStates[i], m_InterfaceVelocityStates[i]);
 		}
 
 		return hardware_interface::return_type::OK;
@@ -465,9 +467,12 @@ namespace TechControlInterface
 	{
 		for (std::size_t i = 0; i < m_NumJoints; i++)
 		{
-			RCLCPP_INFO(get_logger(), "%s Get command: Pos: %d\tVel: %d\t", std::string(info_.joints[i].name).c_str(), m_InterfacePositionCommands[i], m_InterfaceVelocityCommands[i]);
+			// RCLCPP_INFO(get_logger(), "%s Get command: Pos: %f\tVel: %f\t", std::string(info_.joints[i].name).c_str(), m_InterfacePositionCommands[i], m_InterfaceVelocityCommands[i]);
 			// Thread of this function is seperated form loop. The command really write into motor drive in loop.
-			m_TargetPosition[i] = m_InterfacePositionCommands[i];
+			if (!std::isnan(m_InterfacePositionCommands[i]))
+			{
+				m_TargetPosition[i] = m_InterfacePositionCommands[i];
+			}
 			m_TargetVelocity[i] = m_InterfaceVelocityCommands[i];
 		}
 
@@ -477,7 +482,7 @@ namespace TechControlInterface
 	std::vector<hardware_interface::StateInterface> TechHardwareInterface::export_state_interfaces()
 	{
 		std::vector<hardware_interface::StateInterface> state_interfaces;
-		for (std::size_t i = 0; i < m_NumJoints; i++)
+		for (std::size_t i = 0; i < m_NumJoints; ++i)
 		{
 			state_interfaces.emplace_back(hardware_interface::StateInterface(info_.joints[i].name, hardware_interface::HW_IF_POSITION, &m_InterfacePositionStates[i]));
 			state_interfaces.emplace_back(hardware_interface::StateInterface(info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &m_InterfaceVelocityStates[i]));
@@ -488,10 +493,11 @@ namespace TechControlInterface
 	std::vector<hardware_interface::CommandInterface> TechHardwareInterface::export_command_interfaces()
 	{
 		std::vector<hardware_interface::CommandInterface> command_interfaces;
-		for (std::size_t i = 0; i < m_NumJoints; i++)
+		for (std::size_t i = 0; i < m_NumJoints; ++i)
 		{
 			command_interfaces.emplace_back(hardware_interface::CommandInterface(info_.joints[i].name, hardware_interface::HW_IF_POSITION, &m_InterfacePositionCommands[i]));
 			command_interfaces.emplace_back(hardware_interface::CommandInterface(info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &m_InterfaceVelocityCommands[i]));
+			command_interfaces.emplace_back(hardware_interface::CommandInterface(info_.joints[i].name, "disable", &m_InterfaceDisableCommands[i]));
 		}
 		return command_interfaces;
 	}
@@ -677,12 +683,10 @@ namespace TechControlInterface
 							repeatData[i - 1] = *m_OutTechDrive[i - 1];
 							repeats[i - 1] = 200;
 						}
-						else if ((m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0033)
+						else if (m_ControlLevel[i - 1] != ControlLevelEnum::DISABLE && (m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0033)
 						{
 							m_OutTechDrive[i - 1]->ControlWord = 0xF;
 							repeatData[i - 1] = *m_OutTechDrive[i - 1];
-							RCLCPP_INFO(get_logger(), "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg velcmd: %d", get_command(std::string(info_.joints[i - 1].name + "/" + hardware_interface::HW_IF_POSITION)));
-							RCLCPP_INFO(get_logger(), "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg velcmd: %d", get_command(std::string(info_.joints[i - 1].name + "/" + hardware_interface::HW_IF_VELOCITY)));
 							repeats[i - 1] = 200;
 						}
 						else if ((m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0037)
@@ -690,6 +694,7 @@ namespace TechControlInterface
 							inNormalOPMode = true;
 							if (m_ControlLevel[i - 1] == ControlLevelEnum::POSITION)
 							{
+								m_OutTechDrive[i - 1]->TargetVelocity = 0;
 								if (!std::isnan(m_TargetPosition[i - 1]))
 								{
 									m_OutTechDrive[i - 1]->OpMode = 8;
@@ -703,8 +708,12 @@ namespace TechControlInterface
 								m_OutTechDrive[i - 1]->TargetVelocity = m_TargetVelocity[i - 1];
 								m_OutTechDrive[i - 1]->ControlWord = 0x0F;
 							}
+							else if (m_ControlLevel[i - 1] == ControlLevelEnum::DISABLE)
+							{
+								m_OutTechDrive[i - 1]->TargetVelocity = 0;
+								m_OutTechDrive[i - 1]->ControlWord = 0b1011;
+							}
 						}
-						// RCLCPP_INFO(get_logger(), "dddddddddddddddddddddddddddddddddddddStatus:%x", m_InTechDrive[i - 1]->StatusWord);
 					}
 				}
 				else
@@ -748,12 +757,18 @@ namespace TechControlInterface
 		m_ControlLevel.resize(m_NumJoints);
 		for (auto &val : m_ControlLevel)
 		{
-			val.store(ControlLevelEnum::UNDEFINED);
+			val.store(ControlLevelEnum::DISABLE);
 		}
-		m_InterfacePositionCommands.resize(m_NumJoints);
-		m_InterfacePositionStates.resize(m_NumJoints);
-		m_InterfaceVelocityCommands.resize(m_NumJoints);
-		m_InterfaceVelocityStates.resize(m_NumJoints);
+		m_InterfacePositionCommands.clear();
+		m_InterfacePositionStates.clear();
+		m_InterfaceVelocityCommands.clear();
+		m_InterfaceVelocityStates.clear();
+		m_InterfaceDisableCommands.clear();
+		m_InterfacePositionCommands.resize(m_NumJoints, std::numeric_limits<double>::quiet_NaN());
+		m_InterfacePositionStates.resize(m_NumJoints, std::numeric_limits<double>::quiet_NaN());
+		m_InterfaceVelocityCommands.resize(m_NumJoints, 0);
+		m_InterfaceVelocityStates.resize(m_NumJoints, 0);
+		m_InterfaceDisableCommands.resize(m_NumJoints, 0);
 	}
 
 	void TechHardwareInterface::AddTimespec(timespec *ts, int64 addtime)
