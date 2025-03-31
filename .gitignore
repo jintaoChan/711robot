@@ -3,5 +3,7 @@ install
 log
 scripts
 .vscode
+.qtc_clangd
 *.lib
 *.a
+*.user

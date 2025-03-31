@@ -101,6 +101,11 @@ def generate_launch_description():
                    "--param-file", robot_controllers],
     )
 
+    ui = Node(
+        package="ros2_humble_qt_demo",
+        executable="ros2_humble_qt_demo"
+    )
+
     # Delay rviz start after `joint_state_broadcaster`
     delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
         event_handler=OnProcessExit(
@@ -124,6 +129,7 @@ def generate_launch_description():
         robot_controller_spawner,
         # delay_rviz_after_joint_state_broadcaster_spawner,
         delay_joint_state_broadcaster_after_robot_controller_spawner,
+        ui,
     ]
 
     return LaunchDescription(declared_arguments + nodes)
