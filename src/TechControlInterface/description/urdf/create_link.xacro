@@ -5,24 +5,33 @@
         link_name
         xyz_offset
         rpy_offset
+        mass
         mesh_path">
     <link name="${link_name}">
-      <visual>
+      <inertial>
         <origin xyz="${xyz_offset}" rpy="${rpy_offset}"/>
-        <geometry>
-          <mesh filename="${mesh_path}/${link_name}.STL"/>
-        </geometry>
-      </visual>
+        <mass value="1"/>
+        <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+      </inertial>
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
           <mesh filename="${mesh_path}/${link_name}.STL"/>
         </geometry>
       </collision>
-      <inertial>
-        <mass value="1"/>
-        <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
-      </inertial>
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0" />
+        <material
+          name="">
+          <color
+            rgba="1 1 1 1" />
+        </material>
+        <geometry>
+          <mesh filename="${mesh_path}/${link_name}.STL"/>
+        </geometry>
+      </visual>
     </link>
   </xacro:macro>
 </robot>
