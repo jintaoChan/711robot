@@ -35,8 +35,6 @@ namespace TechControlInterface
 		constexpr char LOG_NAME[] = "TechControlInterface";
 		constexpr double DEG_TO_RAD = 0.0174533;
 		constexpr size_t PROFILE_TORQUE_MODE = 4;
-		constexpr size_t CYCLIC_VELOCITY_MODE = 9;
-		constexpr size_t CYCLIC_POSITION_MODE = 8;
 		constexpr double RPM_TO_RAD_PER_S = 0.10472;
 		constexpr double RAD_PER_S_TO_RPM = 1 / RPM_TO_RAD_PER_S;
 		// Bit 2 (0-indexed) goes to 0 to turn on Quick Stop
@@ -190,19 +188,14 @@ namespace TechControlInterface
 			}
 		}
 
-		// osal_thread_create(&m_EcatErrorThread, STACK128K, (void *)&TechHardwareInterface::ecatCheck, (void *)&ctime); // Create the EtherCAT check thread
-
 		// Ethercat initialization
 		// Define the interface name (e.g. eth0 or eno0) in the ros2_control.xacro
 		std::string eth_device = info_.hardware_parameters["eth_device"];
 		RCLCPP_INFO_STREAM(get_logger(), "Using eth_device: " << eth_device);
-		int ec_init_status = ec_init(eth_device.c_str());
-		if (ec_init_status <= 0)
+        if (ec_init(eth_device.c_str()) <= 0)
 		{
 			RCLCPP_FATAL_STREAM(get_logger(),
-								"Error during initialization of ethercat interface: "
-									<< eth_device.c_str() << " with status: "
-									<< ec_init_status);
+                                "Error during initialization of ethercat interface: " << eth_device.c_str());
 			return hardware_interface::CallbackReturn::ERROR;
 		}
 
@@ -323,7 +316,10 @@ namespace TechControlInterface
 					RCLCPP_INFO(get_logger(), "  Cycle Time: %d ns", cycleTime); // Print the cycle time
 				}
 			}
-		}
+        }
+        m_EcatErrorThread = std::thread(&TechHardwareInterface::ecatCheck, this, (void*)&ctime);
+        m_EcatErrorThread->detach();
+        // osal_thread_create(&m_EcatErrorThread, STACK128K, (void *)(&(TechHardwareInterface::ecatCheck)), (void *)&ctime); // Create the EtherCAT check thread
 
 		// request OP state for all slaves
 		ec_slave[0].state = EC_STATE_OPERATIONAL; // Change the state of the first slave to OP
@@ -342,17 +338,17 @@ namespace TechControlInterface
 			return hardware_interface::CallbackReturn::ERROR;
 		}
 
-		// Connect struct pointers to I/O
-		for (size_t i = 1; i < (m_NumJoints + 1); ++i)
-		{
-			m_InTechDrive.push_back((InTechDrive *)ec_slave[i].inputs);
-			m_OutTechDrive.push_back((OutTechDrive *)ec_slave[i].outputs);
-		}
-		resetData();
+        // Connect struct pointers to I/O
+        for (size_t i = 1; i < (m_NumJoints + 1); ++i)
+        {
+            m_InTechDrive.push_back((InTechDrive *)ec_slave[i].inputs);
+            m_OutTechDrive.push_back((OutTechDrive *)ec_slave[i].outputs);
+        }
+        resetData();
 
 		// Start the control loop, wait for it to reach normal operation mode
-		m_SomanetControlThread = std::thread(&TechHardwareInterface::somanetCyclicLoop, this,
-											 std::ref(m_InNomalOPMode));
+        m_SomanetControlThread = std::thread(&TechHardwareInterface::somanetCyclicLoop, this,
+                                             std::ref(m_InNomalOPMode));
 
 		return hardware_interface::CallbackReturn::SUCCESS;
 	}
@@ -506,10 +502,10 @@ namespace TechControlInterface
 	{
 		// A flag to ecat_error_check_ thread
 		m_InNomalOPMode = false;
-		if (m_SomanetControlThread && m_SomanetControlThread->joinable())
-		{
-			m_SomanetControlThread->join();
-		}
+        if (m_SomanetControlThread && m_SomanetControlThread->joinable())
+        {
+            m_SomanetControlThread->join();
+        }
 
 		// Close the ethercat connection
 		ec_close();
@@ -544,13 +540,13 @@ namespace TechControlInterface
 						ec_group[currentgroup].docheckstate = true;
 						if (ec_slave[slave].state == (EC_STATE_SAFE_OP + EC_STATE_ERROR))
 						{
-							// RCLCPP_WARN(get_logger(), "ERROR : slave %d is in SAFE_OP + ERROR, attempting ack.", slave);
-							ec_slave[slave].state = (EC_STATE_SAFE_OP + EC_STATE_ACK);
+                            RCLCPP_WARN(get_logger(), "ERROR : slave %d is in SAFE_OP + ERROR, attempting ack.", slave);
+                            ec_slave[slave].state = (EC_STATE_SAFE_OP + EC_STATE_ACK);
 							ec_writestate(slave);
 						}
 						else if (ec_slave[slave].state == EC_STATE_SAFE_OP)
 						{
-							// RCLCPP_WARN(get_logger(), "WARNING : slave %d is in SAFE_OP, change to OPERATIONAL.", slave);
+                            RCLCPP_WARN(get_logger(), "WARNING : slave %d is in SAFE_OP, change to OPERATIONAL.", slave);
 							ec_slave[slave].state = EC_STATE_OPERATIONAL;
 							ec_writestate(slave);
 						}
@@ -559,7 +555,7 @@ namespace TechControlInterface
 							if (ec_reconfig_slave(slave, EC_TIMEOUTMON))
 							{
 								ec_slave[slave].islost = false;
-								// RCLCPP_WARN(get_logger(), "MESSAGE : slave %d reconfigured", slave);
+                                RCLCPP_WARN(get_logger(), "MESSAGE : slave %d reconfigured", slave);
 							}
 						}
 						else if (!ec_slave[slave].islost)
@@ -569,7 +565,7 @@ namespace TechControlInterface
 							if (ec_slave[slave].state == EC_STATE_NONE)
 							{
 								ec_slave[slave].islost = true;
-								// RCLCPP_WARN(get_logger(), "ERROR : slave %d lost", slave);
+                                RCLCPP_WARN(get_logger(), "ERROR : slave %d lost", slave);
 							}
 						}
 					}
@@ -580,18 +576,18 @@ namespace TechControlInterface
 							if (ec_recover_slave(slave, EC_TIMEOUTMON))
 							{
 								ec_slave[slave].islost = false;
-								// RCLCPP_INFO(get_logger(), "MESSAGE : slave %d recovered", slave);
+                                RCLCPP_INFO(get_logger(), "MESSAGE : slave %d recovered", slave);
 							}
 						}
 						else
 						{
 							ec_slave[slave].islost = false;
-							// RCLCPP_INFO(get_logger(), "MESSAGE : slave %d found", slave);
+                            RCLCPP_INFO(get_logger(), "MESSAGE : slave %d found", slave);
 						}
 					}
 				}
-				// if (!ec_group[currentgroup].docheckstate)
-				// 	RCLCPP_INFO(get_logger(), "OK : all slaves resumed OPERATIONAL.");
+                if (!ec_group[currentgroup].docheckstate)
+                    RCLCPP_INFO(get_logger(), "OK : all slaves resumed OPERATIONAL.");
 			}
 			osal_usleep(10000);
 		}
@@ -691,7 +687,6 @@ namespace TechControlInterface
 						}
 						else if ((m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0037)
 						{
-							inNormalOPMode = true;
 							if (m_ControlLevel[i - 1] == ControlLevelEnum::POSITION)
 							{
 								m_OutTechDrive[i - 1]->TargetVelocity = 0;

@@ -110,7 +110,6 @@ namespace TechControlInterface
          */
         void somanetCyclicLoop(std::atomic<bool> &inNomalOPMode);
 
-        std::optional<std::thread> m_SomanetControlThread;
 
         size_t m_NumJoints;
 
@@ -135,7 +134,8 @@ namespace TechControlInterface
         std::deque<std::atomic<ControlLevelEnum>> m_ControlLevel;
 
         // For SOEM
-        OSAL_THREAD_HANDLE m_EcatErrorThread;
+        std::optional<std::thread> m_EcatErrorThread;
+        std::optional<std::thread> m_SomanetControlThread;
         char m_IOMap[4096];
         int m_CycleTime{1000};
         int64 m_TOff;
