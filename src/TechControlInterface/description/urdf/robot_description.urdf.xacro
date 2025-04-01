@@ -81,7 +81,9 @@
   <joint name="joint0" type="prismatic">
     <parent link="base_link"/>
     <child link="link0"/>
-    <origin xyz="0 0 0.061584" rpy="0 0 0"/>
+    <origin
+     xyz="0 -1 0.061584"
+     rpy="0 0 0"/>
     <axis xyz="0 -1 0"/>
     <limit effort="1000.0" lower="-1" upper="1" velocity="2.5"/>
   </joint>
@@ -100,7 +102,7 @@
     <child link="link2"/>
     <origin
       xyz="0.149 -0.36401 0"
-      rpy="0 0 1.5708" />
+      rpy="1.680577537 0 1.5708" />
     <axis xyz="1 0 0"/>
     <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
   </joint>
@@ -110,7 +112,7 @@
     <child link="link3"/>
     <origin
       xyz="-0.01 0.027384 0.2485"
-      rpy="0 0 0" />
+      rpy="-0.317649924 0 0" />
     <axis xyz="1 0 0"/>
     <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
   </joint>
@@ -130,7 +132,7 @@
     <child link="link5"/>
     <origin
       xyz="0 -0.0735 0.0645"
-      rpy="1.5708 1.363 -3.1416" />
+      rpy="1.5708 0.187869814 -3.1416" />
     <axis xyz="0 0 -1"/>
     <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
   </joint>

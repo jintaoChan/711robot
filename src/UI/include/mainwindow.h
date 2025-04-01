@@ -40,6 +40,8 @@ private slots:
 
     void on_button_joint5_forw_clicked();
 
+    void on_button_joint6_forw_clicked();
+
     void on_button_joint2_back_clicked();
 
     void on_button_joint3_back_clicked();
@@ -47,6 +49,8 @@ private slots:
     void on_button_joint4_back_clicked();
 
     void on_button_joint5_back_clicked();
+
+    void on_button_joint6_back_clicked();
 
     void on_button_joint2_forw_velo_pressed();
 
@@ -79,6 +83,15 @@ private slots:
     void on_button_joint5_back_velo_pressed();
 
     void on_button_joint5_back_velo_released();
+
+    void on_button_joint6_forw_velo_pressed();
+
+    void on_button_joint6_forw_velo_released();
+
+    void on_button_joint6_back_velo_pressed();
+
+    void on_button_joint6_back_velo_released();
+
 
 private:
     void setButtonState(bool state);

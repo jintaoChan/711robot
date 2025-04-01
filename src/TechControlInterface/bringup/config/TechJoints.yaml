@@ -13,6 +13,7 @@ TechPositionController:
       - joint3
       - joint4
       - joint5
+      - joint6
     command_interfaces:
       - position
 
@@ -28,6 +29,7 @@ TechVelocityController:
       - joint3
       - joint4
       - joint5
+      - joint6
     command_interfaces:
       - velocity
 
@@ -43,6 +45,7 @@ TechDisableController:
       - joint3
       - joint4
       - joint5
+      - joint6
     command_interfaces:
       - disable
 

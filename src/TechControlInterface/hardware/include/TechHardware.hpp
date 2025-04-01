@@ -137,7 +137,7 @@ namespace TechControlInterface
         std::optional<std::thread> m_EcatErrorThread;
         std::optional<std::thread> m_SomanetControlThread;
         char m_IOMap[4096];
-        int m_CycleTime{1000};
+        int m_CycleTime{5000};
         int64 m_TOff;
         int64 m_GlobalDelta;
 
@@ -149,8 +149,9 @@ namespace TechControlInterface
         // For coordination between threads
         volatile std::atomic<int> m_WKC;
         std::atomic<int> m_ExpectedWKC;
-        std::atomic<bool> m_NeedLF = false;
-        std::atomic<bool> m_InNomalOPMode = false;
+        std::atomic<bool> m_NeedLF{false};
+        std::atomic<bool> m_InNomalOPMode{false};
+        const char* STEPPER_DRIVE_NAME = "ECT60V202";
     };
 
 } // namespace TechControlInterface

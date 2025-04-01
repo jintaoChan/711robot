@@ -43,7 +43,98 @@ namespace TechControlInterface
 		constexpr uint NSEC_PER_SEC{1000000000};
 	} // namespace
 
-	int PDOsetup(uint16 slave)
+	int StepperPDOsetup(uint16 slave)
+	{
+		int retval = 0;
+		uint8 zeroMap = 0;
+		uint16 clearVal = 0x0000;
+		uint32 mapObject;
+		uint16 RPDOMap = 0x1c12;
+		uint16 TPDOMap = 0x1c13;
+		uint16 RPDOIdx = 0x1601;
+		uint16 TPDOIdx = 0x1A00;
+		uint16 RPDOMapIdx = 0x0001;
+		uint16 TPDOMapIdx = 0x0001;
+		uint8 mapCount = 4;
+		//........................................................................................
+		// Map RXPOD
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x00, FALSE, sizeof(zeroMap), &zeroMap, EC_TIMEOUTSAFE);
+
+		// 2. Configure new PDO mapping
+		// Control Word
+		mapObject = 0x60400010; // 0x6040:0 Control Word, 16 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x01, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Mode of Operation
+		mapObject = 0x60600008; // 0x6060:0 Mode of Operation, 8 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x02, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Target Position
+		mapObject = 0x607A0020; // 0x607A:0 Target Position, 32 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x03, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Profile Velocity
+		mapObject = 0x60FF0020; // 0x60FF:0 Target Velocity, 32 bits
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x04, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Set number of mapped objects
+		retval += ec_SDOwrite(slave, RPDOIdx, 0x00, FALSE, sizeof(mapCount), &mapCount, EC_TIMEOUTSAFE);
+
+		// 4. Configure RXPDO allocation
+		clearVal = 0x0000; // Clear the mapping
+		retval += ec_SDOwrite(slave, RPDOMap, 0x00, FALSE, sizeof(clearVal), &clearVal, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, RPDOMap, 0x01, FALSE, sizeof(RPDOIdx), &RPDOIdx, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, RPDOMap, 0x00, FALSE, sizeof(RPDOMapIdx), &RPDOMapIdx, EC_TIMEOUTSAFE);
+
+		//........................................................................................
+		// Map TXPOD
+		// First, clear the TXPDO mapping
+		clearVal = 0x0000;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x00, FALSE, sizeof(clearVal), &clearVal, EC_TIMEOUTSAFE);
+
+		// Configure TXPDO mapping entries
+		// Status Word (0x6041:0, 16 bits)
+		retval = 0;
+		mapObject = 0x60410010;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x01, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Modes of Operation Display (0x6061:0, 8 bits)
+		mapObject = 0x60610008;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x02, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Position Actual Value (0x6064:0, 32 bits)
+		mapObject = 0x60640020;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x03, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Velocity Actual Value (0x60FD:0, 32 bits)
+		mapObject = 0x606C0020;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x04, FALSE, sizeof(mapObject), &mapObject, EC_TIMEOUTSAFE);
+
+		// Set the number of mapped objects (4 objects)
+		mapCount = 4;
+		retval += ec_SDOwrite(slave, TPDOIdx, 0x00, FALSE, sizeof(mapCount), &mapCount, EC_TIMEOUTSAFE);
+
+		// Configure TXPDO assignment
+		// First, clear the assignment
+		clearVal = 0x0000;
+		retval += ec_SDOwrite(slave, TPDOMap, 0x00, FALSE, sizeof(clearVal), &clearVal, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, TPDOMap, 0x01, FALSE, sizeof(TPDOIdx), &TPDOIdx, EC_TIMEOUTSAFE);
+		retval += ec_SDOwrite(slave, TPDOMap, 0x00, FALSE, sizeof(TPDOMapIdx), &TPDOMapIdx, EC_TIMEOUTSAFE);
+
+		while (EcatError)
+			printf("%s", ec_elist2string());
+
+		if (retval < 0)
+		{
+			printf("TXPDO Mapping failed\n");
+			return (-1);
+		}
+
+		printf("slave %d set, retval = %d\n", slave, retval);
+		return 1;
+	}
+
+	int TechPDOsetup(uint16 slave)
 	{
 		int retval = 0;
 		uint8 zeroMap = 0;
@@ -144,7 +235,6 @@ namespace TechControlInterface
 		}
 		m_Logger = std::make_shared<rclcpp::Logger>(rclcpp::get_logger("TechHardware"));
 		m_NumJoints = info_.joints.size();
-		RCLCPP_INFO(get_logger(), "number of joints: %d", (int)m_NumJoints);
 
 		for (const hardware_interface::ComponentInfo &joint : info_.joints)
 		{
@@ -192,10 +282,10 @@ namespace TechControlInterface
 		// Define the interface name (e.g. eth0 or eno0) in the ros2_control.xacro
 		std::string eth_device = info_.hardware_parameters["eth_device"];
 		RCLCPP_INFO_STREAM(get_logger(), "Using eth_device: " << eth_device);
-        if (ec_init(eth_device.c_str()) <= 0)
+		if (ec_init(eth_device.c_str()) <= 0)
 		{
 			RCLCPP_FATAL_STREAM(get_logger(),
-                                "Error during initialization of ethercat interface: " << eth_device.c_str());
+								"Error during initialization of ethercat interface: " << eth_device.c_str());
 			return hardware_interface::CallbackReturn::ERROR;
 		}
 
@@ -208,7 +298,14 @@ namespace TechControlInterface
 
 		for (int i = 1; i <= ec_slavecount; i++)
 		{
-			ec_slave[i].PO2SOconfig = &PDOsetup;
+			if (!strcmp(ec_slave[i].name, "ECT60V202"))
+			{
+				ec_slave[i].PO2SOconfig = &StepperPDOsetup;
+			}
+			else
+			{
+				ec_slave[i].PO2SOconfig = &TechPDOsetup;
+			}
 		}
 
 		ec_readstate(); // Read the state of the slaves
@@ -316,11 +413,13 @@ namespace TechControlInterface
 					RCLCPP_INFO(get_logger(), "  Cycle Time: %d ns", cycleTime); // Print the cycle time
 				}
 			}
-        }
-        m_EcatErrorThread = std::thread(&TechHardwareInterface::ecatCheck, this, (void*)&ctime);
-        m_EcatErrorThread->detach();
-        // osal_thread_create(&m_EcatErrorThread, STACK128K, (void *)(&(TechHardwareInterface::ecatCheck)), (void *)&ctime); // Create the EtherCAT check thread
+		}
+		m_EcatErrorThread = std::thread(&TechHardwareInterface::ecatCheck, this, (void *)&ctime);
+		m_EcatErrorThread->detach();
 
+		// Start the control loop, wait for it to reach normal operation mode
+		m_SomanetControlThread = std::thread(&TechHardwareInterface::somanetCyclicLoop, this, std::ref(m_InNomalOPMode));
+		m_SomanetControlThread->detach();
 		// request OP state for all slaves
 		ec_slave[0].state = EC_STATE_OPERATIONAL; // Change the state of the first slave to OP
 		ec_writestate(0);
@@ -331,24 +430,13 @@ namespace TechControlInterface
 			ec_receive_processdata(EC_TIMEOUTRET);
 			ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
 		} while (chk-- && (ec_slave[0].state != EC_STATE_OPERATIONAL));
+		m_InNomalOPMode = true;
 
 		if (ec_slave[0].state != EC_STATE_OPERATIONAL)
 		{
 			RCLCPP_FATAL(get_logger(), "An ethercat slave failed to reach OPERATIONAL state");
 			return hardware_interface::CallbackReturn::ERROR;
 		}
-
-        // Connect struct pointers to I/O
-        for (size_t i = 1; i < (m_NumJoints + 1); ++i)
-        {
-            m_InTechDrive.push_back((InTechDrive *)ec_slave[i].inputs);
-            m_OutTechDrive.push_back((OutTechDrive *)ec_slave[i].outputs);
-        }
-        resetData();
-
-		// Start the control loop, wait for it to reach normal operation mode
-        m_SomanetControlThread = std::thread(&TechHardwareInterface::somanetCyclicLoop, this,
-                                             std::ref(m_InNomalOPMode));
 
 		return hardware_interface::CallbackReturn::SUCCESS;
 	}
@@ -502,11 +590,13 @@ namespace TechControlInterface
 	{
 		// A flag to ecat_error_check_ thread
 		m_InNomalOPMode = false;
-        if (m_SomanetControlThread && m_SomanetControlThread->joinable())
-        {
-            m_SomanetControlThread->join();
-        }
-
+		// if (m_SomanetControlThread && m_SomanetControlThread->joinable())
+		// {
+		// 	m_SomanetControlThread->join();
+		// }
+		while (1)
+		{
+		}
 		// Close the ethercat connection
 		ec_close();
 	}
@@ -540,13 +630,13 @@ namespace TechControlInterface
 						ec_group[currentgroup].docheckstate = true;
 						if (ec_slave[slave].state == (EC_STATE_SAFE_OP + EC_STATE_ERROR))
 						{
-                            RCLCPP_WARN(get_logger(), "ERROR : slave %d is in SAFE_OP + ERROR, attempting ack.", slave);
-                            ec_slave[slave].state = (EC_STATE_SAFE_OP + EC_STATE_ACK);
+							RCLCPP_WARN(get_logger(), "ERROR : slave %d is in SAFE_OP + ERROR, attempting ack.", slave);
+							ec_slave[slave].state = (EC_STATE_SAFE_OP + EC_STATE_ACK);
 							ec_writestate(slave);
 						}
 						else if (ec_slave[slave].state == EC_STATE_SAFE_OP)
 						{
-                            RCLCPP_WARN(get_logger(), "WARNING : slave %d is in SAFE_OP, change to OPERATIONAL.", slave);
+							RCLCPP_WARN(get_logger(), "WARNING : slave %d is in SAFE_OP, change to OPERATIONAL.", slave);
 							ec_slave[slave].state = EC_STATE_OPERATIONAL;
 							ec_writestate(slave);
 						}
@@ -555,7 +645,7 @@ namespace TechControlInterface
 							if (ec_reconfig_slave(slave, EC_TIMEOUTMON))
 							{
 								ec_slave[slave].islost = false;
-                                RCLCPP_WARN(get_logger(), "MESSAGE : slave %d reconfigured", slave);
+								RCLCPP_WARN(get_logger(), "MESSAGE : slave %d reconfigured", slave);
 							}
 						}
 						else if (!ec_slave[slave].islost)
@@ -565,7 +655,7 @@ namespace TechControlInterface
 							if (ec_slave[slave].state == EC_STATE_NONE)
 							{
 								ec_slave[slave].islost = true;
-                                RCLCPP_WARN(get_logger(), "ERROR : slave %d lost", slave);
+								RCLCPP_WARN(get_logger(), "ERROR : slave %d lost", slave);
 							}
 						}
 					}
@@ -576,18 +666,18 @@ namespace TechControlInterface
 							if (ec_recover_slave(slave, EC_TIMEOUTMON))
 							{
 								ec_slave[slave].islost = false;
-                                RCLCPP_INFO(get_logger(), "MESSAGE : slave %d recovered", slave);
+								RCLCPP_INFO(get_logger(), "MESSAGE : slave %d recovered", slave);
 							}
 						}
 						else
 						{
 							ec_slave[slave].islost = false;
-                            RCLCPP_INFO(get_logger(), "MESSAGE : slave %d found", slave);
+							RCLCPP_INFO(get_logger(), "MESSAGE : slave %d found", slave);
 						}
 					}
 				}
-                if (!ec_group[currentgroup].docheckstate)
-                    RCLCPP_INFO(get_logger(), "OK : all slaves resumed OPERATIONAL.");
+				if (!ec_group[currentgroup].docheckstate)
+					RCLCPP_INFO(get_logger(), "OK : all slaves resumed OPERATIONAL.");
 			}
 			osal_usleep(10000);
 		}
@@ -613,44 +703,53 @@ namespace TechControlInterface
 		int64 cycletime = m_CycleTime * 1000;
 
 		m_TOff = 0;
+
+		// Connect struct pointers to I/O
+		for (size_t i = 1; i < (m_NumJoints + 1); ++i)
+		{
+			m_InTechDrive.push_back((InTechDrive *)ec_slave[i].inputs);
+			m_OutTechDrive.push_back((OutTechDrive *)ec_slave[i].outputs);
+		}
+		resetData();
+
 		std::vector<int> repeats(ec_slavecount, 0);
 		std::vector<OutTechDrive> repeatData(ec_slavecount);
 		while (rclcpp::ok())
 		{
-			inNormalOPMode = true;
-			{
-				// TODO How to use this lock?
-				std::lock_guard<std::mutex> lock(m_InSomanetMtx);
-				clock_gettime(CLOCK_MONOTONIC, &cycleStart);
+			// TODO How to use this lock?
+			std::lock_guard<std::mutex> lock(m_InSomanetMtx);
+			clock_gettime(CLOCK_MONOTONIC, &cycleStart);
 
-				AddTimespec(&ts, cycletime + m_TOff);
-				if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, &tleft) != 0)
+			AddTimespec(&ts, cycletime + m_TOff);
+			if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, &tleft) != 0)
+			{
+				// If sleep is interrupted, record the error
+				missedCycles++;
+				RCLCPP_WARN(get_logger(), "Clock sleep interrupted, missed cycles: %d", missedCycles);
+				if (missedCycles >= MAX_MISSED_CYCLES)
 				{
-					// If sleep is interrupted, record the error
-					missedCycles++;
-					RCLCPP_WARN(get_logger(), "Clock sleep interrupted, missed cycles: %d", missedCycles);
-					if (missedCycles >= MAX_MISSED_CYCLES)
+					RCLCPP_FATAL(get_logger(), "Too many missed cycles, attempting recovery...");
+					// Reset the counter
+					missedCycles = 0;
+					// Resynchronize the clock
+					clock_gettime(CLOCK_MONOTONIC, &ts);
+					ts.tv_nsec = ((ts.tv_nsec / 1000000) + 1) * 1000000;
+					if (ts.tv_nsec >= NSEC_PER_SEC)
 					{
-						RCLCPP_FATAL(get_logger(), "Too many missed cycles, attempting recovery...");
-						// Reset the counter
-						missedCycles = 0;
-						// Resynchronize the clock
-						clock_gettime(CLOCK_MONOTONIC, &ts);
-						ts.tv_nsec = ((ts.tv_nsec / 1000000) + 1) * 1000000;
-						if (ts.tv_nsec >= NSEC_PER_SEC)
-						{
-							ts.tv_sec++;
-							ts.tv_nsec -= NSEC_PER_SEC;
-						}
+						ts.tv_sec++;
+						ts.tv_nsec -= NSEC_PER_SEC;
 					}
 				}
-				else
-				{
-					missedCycles = 0;
-				}
+			}
+			else
+			{
+				missedCycles = 0;
+			}
 
-				m_WKC = ec_receive_processdata(EC_TIMEOUTRET);
+			m_WKC = ec_receive_processdata(EC_TIMEOUTRET);
 
+			if (inNormalOPMode)
+			{
 				if (m_WKC >= m_ExpectedWKC)
 				{
 
@@ -715,24 +814,23 @@ namespace TechControlInterface
 				{
 					RCLCPP_WARN(get_logger(), "Working counter error (wkc: %d, expected: %d)\n", (int)m_WKC, (int)m_ExpectedWKC);
 				}
-				// Clock synchronization
-				if (ec_slave[0].hasdc)
-				{
-					ECSync(ec_DCtime, cycletime, &m_TOff);
-				}
+			}
 
-				// Send process data
-				ec_send_processdata();
-				clock_gettime(CLOCK_MONOTONIC, &cycleEnd);
-				cycleTimeNanoSec = (cycleEnd.tv_sec - cycleStart.tv_sec) * NSEC_PER_SEC +
-								   (cycleEnd.tv_nsec - cycleStart.tv_nsec);
+			// Clock synchronization
+			if (ec_slave[0].hasdc)
+			{
+				ECSync(ec_DCtime, cycletime, &m_TOff);
+			}
 
-				if (cycleTimeNanoSec > cycletime * 1.5)
-				{
-					RCLCPP_WARN(get_logger(), "Cycle time exceeded: %ld ns (expected: %ld ns)", cycleTimeNanoSec, cycletime);
-				}
+			// Send process data
+			ec_send_processdata();
+			clock_gettime(CLOCK_MONOTONIC, &cycleEnd);
+			cycleTimeNanoSec = (cycleEnd.tv_sec - cycleStart.tv_sec) * NSEC_PER_SEC +
+							   (cycleEnd.tv_nsec - cycleStart.tv_nsec);
 
-				// Monitor cycle time
+			if (cycleTimeNanoSec > cycletime * 1.5)
+			{
+				RCLCPP_WARN(get_logger(), "Cycle time exceeded: %ld ns (expected: %ld ns)", cycleTimeNanoSec, cycletime);
 			}
 		}
 	}

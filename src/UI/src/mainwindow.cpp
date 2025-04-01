@@ -34,7 +34,7 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::updateTopicInfo(sensor_msgs::msg::JointState jointState){
-    if(jointState.position.size() != 4) {
+    if(jointState.position.size() != 5) {
         RCLCPP_WARN(get_logger(), "The number:%d of joint state may wrong!", jointState.position.size());
     }
     else {
@@ -43,6 +43,13 @@ void MainWindow::updateTopicInfo(sensor_msgs::msg::JointState jointState){
         ui->label_joint3_position->setText(QString::number(m_Msg.position[1]));
         ui->label_joint4_position->setText(QString::number(m_Msg.position[2]));
         ui->label_joint5_position->setText(QString::number(m_Msg.position[3]));
+        ui->label_joint6_position->setText(QString::number(m_Msg.position[4]));
+
+        ui->label_joint2_velocity->setText(QString::number(m_Msg.velocity[0]));
+        ui->label_joint3_velocity->setText(QString::number(m_Msg.velocity[1]));
+        ui->label_joint4_velocity->setText(QString::number(m_Msg.velocity[2]));
+        ui->label_joint5_velocity->setText(QString::number(m_Msg.velocity[3]));
+        ui->label_joint6_velocity->setText(QString::number(m_Msg.velocity[4]));
     }
 }
 
@@ -51,7 +58,7 @@ void MainWindow::updateTopicInfo(sensor_msgs::msg::JointState jointState){
 void MainWindow::on_button_enable_clicked()
 {
     setButtonState(true);
-    m_SwitcherNode->switchControlMode(ControlMode::Position);
+    m_SwitcherNode->switchControlMode(ControlMode::Velocity);
 
 }
 
@@ -97,12 +104,19 @@ void MainWindow::on_button_joint4_forw_clicked()
     m_ControllerNode->pubMsg(msg);
 }
 
-
 void MainWindow::on_button_joint5_forw_clicked()
 {
     m_SwitcherNode->switchControlMode(ControlMode::Position);
     sensor_msgs::msg::JointState msg(m_Msg);
     msg.position[3] += m_Step;
+    m_ControllerNode->pubMsg(msg);
+}
+
+void MainWindow::on_button_joint6_forw_clicked()
+{
+    m_SwitcherNode->switchControlMode(ControlMode::Position);
+    sensor_msgs::msg::JointState msg(m_Msg);
+    msg.position[4] += m_Step;
     m_ControllerNode->pubMsg(msg);
 }
 
@@ -135,6 +149,14 @@ void MainWindow::on_button_joint5_back_clicked()
     m_SwitcherNode->switchControlMode(ControlMode::Position);
     sensor_msgs::msg::JointState msg(m_Msg);
     msg.position[3] -= m_Step;
+    m_ControllerNode->pubMsg(msg);
+}
+
+void MainWindow::on_button_joint6_back_clicked()
+{
+    m_SwitcherNode->switchControlMode(ControlMode::Position);
+    sensor_msgs::msg::JointState msg(m_Msg);
+    msg.position[4] -= m_Step;
     m_ControllerNode->pubMsg(msg);
 }
 
@@ -273,6 +295,40 @@ void MainWindow::on_button_joint5_back_velo_released()
     m_ControllerNode->pubMsg(msg);
 }
 
+void MainWindow::on_button_joint6_forw_velo_pressed()
+{
+    m_SwitcherNode->switchControlMode(ControlMode::Velocity);
+    sensor_msgs::msg::JointState msg(m_Msg);
+    msg.velocity[4] = m_Velocity;
+    m_ControllerNode->pubMsg(msg);
+}
+
+void MainWindow::on_button_joint6_forw_velo_released()
+{
+    m_SwitcherNode->switchControlMode(ControlMode::Velocity);
+    sensor_msgs::msg::JointState msg(m_Msg);
+    msg.velocity[4] = 0;
+    m_ControllerNode->pubMsg(msg);
+}
+
+void MainWindow::on_button_joint6_back_velo_pressed()
+{
+    m_SwitcherNode->switchControlMode(ControlMode::Velocity);
+    sensor_msgs::msg::JointState msg(m_Msg);
+    msg.velocity[4] = -m_Velocity;
+    m_ControllerNode->pubMsg(msg);
+}
+
+
+void MainWindow::on_button_joint6_back_velo_released()
+{
+    m_SwitcherNode->switchControlMode(ControlMode::Velocity);
+    sensor_msgs::msg::JointState msg(m_Msg);
+    msg.velocity[4] = 0;
+    m_ControllerNode->pubMsg(msg);
+}
+
+
 void MainWindow::setButtonState(bool state){
     ui->button_joint2_forw->setEnabled(state);
     ui->button_joint2_back->setEnabled(state);
@@ -282,6 +338,8 @@ void MainWindow::setButtonState(bool state){
     ui->button_joint4_back->setEnabled(state);
     ui->button_joint5_forw->setEnabled(state);
     ui->button_joint5_back->setEnabled(state);
+    ui->button_joint6_forw->setEnabled(state);
+    ui->button_joint6_back->setEnabled(state);
 
     ui->button_joint2_forw_velo->setEnabled(state);
     ui->button_joint2_back_velo->setEnabled(state);
@@ -291,5 +349,7 @@ void MainWindow::setButtonState(bool state){
     ui->button_joint4_back_velo->setEnabled(state);
     ui->button_joint5_forw_velo->setEnabled(state);
     ui->button_joint5_back_velo->setEnabled(state);
+    ui->button_joint6_forw_velo->setEnabled(state);
+    ui->button_joint6_back_velo->setEnabled(state);
 }
 
