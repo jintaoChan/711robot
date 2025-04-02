@@ -300,10 +300,12 @@ namespace TechControlInterface
 		{
 			if (!strcmp(ec_slave[i].name, "ECT60V202"))
 			{
+				RCLCPP_INFO(get_logger(), "Binding slave %d with: ECT60V202", i); // Confirm successful state change
 				ec_slave[i].PO2SOconfig = &StepperPDOsetup;
 			}
 			else
 			{
+				RCLCPP_INFO(get_logger(), "Binding slave %d with: Tech", i); // Confirm successful state change
 				ec_slave[i].PO2SOconfig = &TechPDOsetup;
 			}
 		}
@@ -596,6 +598,7 @@ namespace TechControlInterface
 		// }
 		while (1)
 		{
+            osal_usleep(100000); // Sleep for 100ms to reduce CPU usage
 		}
 		// Close the ethercat connection
 		ec_close();
@@ -611,10 +614,6 @@ namespace TechControlInterface
 
 			if (m_InNomalOPMode && ((m_WKC < m_ExpectedWKC) || ec_group[currentgroup].docheckstate))
 			{
-				if (m_NeedLF)
-				{
-					m_NeedLF = false;
-				}
 				// one or more slaves are not responding
 				ec_group[currentgroup].docheckstate = false;
 				ec_readstate();
@@ -716,7 +715,6 @@ namespace TechControlInterface
 		std::vector<OutTechDrive> repeatData(ec_slavecount);
 		while (rclcpp::ok())
 		{
-			// TODO How to use this lock?
 			std::lock_guard<std::mutex> lock(m_InSomanetMtx);
 			clock_gettime(CLOCK_MONOTONIC, &cycleStart);
 
@@ -781,6 +779,8 @@ namespace TechControlInterface
 						else if (m_ControlLevel[i - 1] != ControlLevelEnum::DISABLE && (m_InTechDrive[i - 1]->StatusWord & 0x003F) == 0x0033)
 						{
 							m_OutTechDrive[i - 1]->ControlWord = 0xF;
+							m_OutTechDrive[i - 1]->TargetVelocity = 0;
+							m_OutTechDrive[i - 1]->TargetPosition = m_InTechDrive[i - 1]->PositionActualValue;
 							repeatData[i - 1] = *m_OutTechDrive[i - 1];
 							repeats[i - 1] = 200;
 						}

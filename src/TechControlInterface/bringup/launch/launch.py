@@ -94,11 +94,12 @@ def generate_launch_description():
     robot_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["--inactive",
-                   "TechPositionController", 
-                   "TechVelocityController", 
-                   "TechDisableController", 
-                   "--param-file", robot_controllers],
+        arguments=[
+                "--inactive",
+                "TechDisableController", 
+                "TechPositionController", 
+                "TechVelocityController", 
+                "--param-file", robot_controllers],
     )
 
     ui = Node(

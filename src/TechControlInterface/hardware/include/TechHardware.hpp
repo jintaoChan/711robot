@@ -141,15 +141,14 @@ namespace TechControlInterface
         int64 m_TOff;
         int64 m_GlobalDelta;
 
-        std::vector<InTechDrive*> m_InTechDrive;
         std::mutex m_InSomanetMtx;
+        std::vector<InTechDrive*> m_InTechDrive;
         std::vector<OutTechDrive*> m_OutTechDrive;
 
 
         // For coordination between threads
-        volatile std::atomic<int> m_WKC;
+        std::atomic<int> m_WKC;
         std::atomic<int> m_ExpectedWKC;
-        std::atomic<bool> m_NeedLF{false};
         std::atomic<bool> m_InNomalOPMode{false};
         const char* STEPPER_DRIVE_NAME = "ECT60V202";
     };
