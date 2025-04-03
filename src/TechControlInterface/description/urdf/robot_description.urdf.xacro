@@ -8,7 +8,7 @@
 
   <xacro:create_link
       link_name="base_link"
-      xyz_offset="0.134546485528339 1.02602768939509 0.0276854546001787"
+      xyz_offset="0 0 0"
       rpy_offset="0 0 0"
       mass="23.3444937848516"
       mesh_path="package://TechControlInterface/meshes"
@@ -16,14 +16,14 @@
 
   <xacro:create_link
       link_name="link0"
-      xyz_offset="0.109505946566475 1.56830006166103 0.306532290779036"
+      xyz_offset="0 0 0"
       rpy_offset="0 0 0"
       mass="8.67027571199243"
       mesh_path="package://TechControlInterface/meshes"
   />
   <xacro:create_link
       link_name="link1"
-      xyz_offset="0.0601483990121618 -0.443944828019226 1.73584633920143E-05"
+      xyz_offset="0 0 0"
       rpy_offset="0 0 0"
       mass="0.647403062770475"
       mesh_path="package://TechControlInterface/meshes"
@@ -31,7 +31,7 @@
 
   <xacro:create_link
       link_name="link2"
-      xyz_offset="-0.16447187278791 0.0126535013198428 0.1148075556278"
+      xyz_offset="0 0 0"
       rpy_offset="0 0 0"
       mass="0.647403062770475"
       mesh_path="package://TechControlInterface/meshes"
@@ -39,7 +39,7 @@
 
   <xacro:create_link
       link_name="link3"
-      xyz_offset="-0.0679648513950829 -0.0125948841535013 0.0597190016437489"
+      xyz_offset="0 0 0"
       rpy_offset="0 0 0"
       mass="0.441881459418396"
       mesh_path="package://TechControlInterface/meshes"
@@ -47,7 +47,7 @@
 
   <xacro:create_link
       link_name="link4"
-      xyz_offset="-2.79564493776974E-08 -0.00496995620296214 0.0493158936775911"
+      xyz_offset="0 0 0"
       rpy_offset="0 0 0"
       mass="0.359995634810237"
       mesh_path="package://TechControlInterface/meshes"
@@ -55,14 +55,14 @@
 
   <xacro:create_link
       link_name="link5"
-      xyz_offset="-0.0043261798092078 0.0995606848099331 0.196143761355562"
-      rpy_offset="0 0 0"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 -0.187797428"
       mass="0.441881459418396"
       mesh_path="package://TechControlInterface/meshes"
   />
   <xacro:create_link
       link_name="link6"
-      xyz_offset="0.000386879822536601 -0.0239742458499962 0.247370540938741"
+      xyz_offset="0 0 0"
       rpy_offset="0 0 0"
       mass="0.441881459418396"
       mesh_path="package://TechControlInterface/meshes"
@@ -78,7 +78,7 @@
   </joint>
 
   <!-- joints - main serial chain -->
-  <joint name="joint0" type="prismatic">
+  <joint name="joint0" type="fixed">
     <parent link="base_link"/>
     <child link="link0"/>
     <origin
@@ -87,7 +87,7 @@
     <axis xyz="0 -1 0"/>
     <limit effort="1000.0" lower="-1" upper="1" velocity="2.5"/>
   </joint>
-  <joint name="joint1" type="prismatic">
+  <joint name="joint1" type="fixed">
     <parent link="link0"/>
     <child link="link1"/>
     <origin
@@ -103,7 +103,7 @@
     <origin
       xyz="0.149 -0.36401 0"
       rpy="1.680577537 0 1.5708" />
-    <axis xyz="1 0 0"/>
+    <axis xyz="-1 0 0"/>
     <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
   </joint>
 
@@ -132,17 +132,17 @@
     <child link="link5"/>
     <origin
       xyz="0 -0.0735 0.0645"
-      rpy="1.5708 0.187869814 -3.1416" />
+      rpy="1.5708 0 -3.1416" />
     <axis xyz="0 0 -1"/>
     <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
   </joint>
 
-  <joint name="joint6" type="prismatic">
+  <joint name="joint6" type="fixed">
     <parent link="link5"/>
     <child link="link6"/>
     <origin
       xyz="0.0035379 0.14737 0.2235"
-      rpy="1.5708 0 -2.9537" />
+      rpy="1.5708 0 -3.141497428" />
     <axis xyz="0 0 1"/>
     <limit effort="1000.0" lower="-1" upper="1" velocity="2.5"/>
   </joint>

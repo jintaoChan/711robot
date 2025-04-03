@@ -18,9 +18,15 @@ MainWindow::MainWindow(QWidget *parent)
     m_SwitcherNode = new Switcher();
     qRegisterMetaType<sensor_msgs::msg::JointState>("sensor_msgs::msg::JointState");
     connect(m_ControllerNode,SIGNAL(emitTopicData(sensor_msgs::msg::JointState)),this,SLOT(updateTopicInfo(sensor_msgs::msg::JointState)));
-    QIntValidator * intVld = new QIntValidator(this);
-    intVld->setRange(1,100);
-    ui->text_step->setValidator(intVld);
+
+    QIntValidator * stepVld = new QIntValidator(this);
+    stepVld->setRange(1,100);
+    ui->text_step->setValidator(stepVld);
+
+    QIntValidator * velocityVld = new QIntValidator(this);
+    velocityVld->setRange(1,10000);
+    ui->text_velocity->setValidator(velocityVld);
+
     m_Step = ui->text_step->text().toInt();
     m_Velocity = ui->text_velocity->text().toInt();
 

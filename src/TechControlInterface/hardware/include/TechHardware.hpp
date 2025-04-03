@@ -124,6 +124,9 @@ namespace TechControlInterface
             VELOCITY = 1,
             POSITION = 2,
         };
+        std::vector<std::string> m_DriverNames;
+
+
         std::vector<double> m_InterfaceDisableCommands;
         std::vector<double> m_InterfacePositionCommands;
         std::vector<double> m_InterfacePositionStates;
@@ -137,7 +140,7 @@ namespace TechControlInterface
         std::optional<std::thread> m_EcatErrorThread;
         std::optional<std::thread> m_SomanetControlThread;
         char m_IOMap[4096];
-        int m_CycleTime{5000};
+        int m_CycleTime{1000};
         int64 m_TOff;
         int64 m_GlobalDelta;
 
@@ -146,11 +149,16 @@ namespace TechControlInterface
         std::vector<OutTechDrive*> m_OutTechDrive;
 
 
-        // For coordination between threads
         std::atomic<int> m_WKC;
         std::atomic<int> m_ExpectedWKC;
         std::atomic<bool> m_InNomalOPMode{false};
+
+
         const char* STEPPER_DRIVE_NAME = "ECT60V202";
+		const char* TECH_DRIVE_NAME = "? M:0000009a I:00030924";
+        double TECH_MOTOR_ENCODER_RESOLUTION = 1<<16;
+		const uint NSEC_PER_SEC{1000000000};
+
     };
 
 } // namespace TechControlInterface

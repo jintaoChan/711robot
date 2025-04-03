@@ -1,0 +1,50 @@
+# This config file is used by ros2_control
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    store_manipulator_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+store_manipulator_controller:
+  ros__parameters:
+    joints:
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+    command_interfaces:
+      - velocity
+    state_interfaces:
+      - position
+      - velocity
+    allow_nonzero_velocity_at_trajectory_end: true
+    gains:
+      joint2:
+        p: 10.0
+        i: 0.0
+        d: 1.0
+        i_clamp: 1.0
+        ff_velocity_scale: 1.0
+      joint3:
+        p: 10.0
+        i: 0.0
+        d: 1.0
+        i_clamp: 1.0
+        ff_velocity_scale: 1.0
+      joint4:
+        p: 10.0
+        i: 0.0
+        d: 1.0
+        i_clamp: 1.0
+        ff_velocity_scale: 1.0
+      joint5:
+        p: 10.0
+        i: 0.0
+        d: 1.0
+        i_clamp: 1.0
+        ff_velocity_scale: 1.0

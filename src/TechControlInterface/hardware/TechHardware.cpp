@@ -17,6 +17,7 @@
 #include "TechHardware.hpp"
 
 #include <algorithm>
+#include <numbers>
 #include <chrono>
 #include <sys/mman.h>
 #include <sys/time.h>
@@ -30,18 +31,6 @@ using namespace std::chrono_literals;
 
 namespace TechControlInterface
 {
-	namespace
-	{
-		constexpr char LOG_NAME[] = "TechControlInterface";
-		constexpr double DEG_TO_RAD = 0.0174533;
-		constexpr size_t PROFILE_TORQUE_MODE = 4;
-		constexpr double RPM_TO_RAD_PER_S = 0.10472;
-		constexpr double RAD_PER_S_TO_RPM = 1 / RPM_TO_RAD_PER_S;
-		// Bit 2 (0-indexed) goes to 0 to turn on Quick Stop
-		constexpr char EXPECTED_SLAVE_NAME[] = "? M:0000009a I:00030924";
-		constexpr uint STACK128K{128 * 1024};
-		constexpr uint NSEC_PER_SEC{1000000000};
-	} // namespace
 
 	int StepperPDOsetup(uint16 slave)
 	{
@@ -296,16 +285,18 @@ namespace TechControlInterface
 			return hardware_interface::CallbackReturn::ERROR;
 		}
 
+		m_DriverNames.resize(ec_slavecount);
 		for (int i = 1; i <= ec_slavecount; i++)
 		{
-			if (!strcmp(ec_slave[i].name, "ECT60V202"))
+			m_DriverNames[i - 1] = std::string(ec_slave[i].name);
+			if (!strcmp(ec_slave[i].name, STEPPER_DRIVE_NAME))
 			{
-				RCLCPP_INFO(get_logger(), "Binding slave %d with: ECT60V202", i); // Confirm successful state change
+				RCLCPP_INFO(get_logger(), "Binding slave %d(%s) with: ECT60V202", i, m_DriverNames[i - 1].c_str()); // Confirm successful state change
 				ec_slave[i].PO2SOconfig = &StepperPDOsetup;
 			}
 			else
 			{
-				RCLCPP_INFO(get_logger(), "Binding slave %d with: Tech", i); // Confirm successful state change
+				RCLCPP_INFO(get_logger(), "Binding slave %d(%s) with: Tech", i, m_DriverNames[i - 1].c_str()); // Confirm successful state change
 				ec_slave[i].PO2SOconfig = &TechPDOsetup;
 			}
 		}
@@ -462,13 +453,6 @@ namespace TechControlInterface
 		}
 		else
 		{
-			// All joints must have the same command mode
-			if (!std::all_of(newModes.begin() + 1, newModes.end(), [&](ControlLevelEnum mode)
-							 { return mode == newModes[0]; }))
-			{
-				RCLCPP_FATAL(get_logger(), "All joints must have the same command mode.");
-				return hardware_interface::return_type::ERROR;
-			}
 			for (const std::string &key : start_interfaces)
 			{
 				for (std::size_t i = 0; i < m_NumJoints; i++)
@@ -485,7 +469,15 @@ namespace TechControlInterface
 					{
 						newModes.push_back(ControlLevelEnum::DISABLE);
 					}
+					RCLCPP_INFO(get_logger(), "%s joint use %s mode!", std::string(info_.joints[i].name).c_str(), key.c_str());
 				}
+			}
+			// All joints must have the same command mode
+			if (!std::all_of(newModes.begin() + 1, newModes.end(), [&](ControlLevelEnum mode)
+							 { return mode == newModes[0]; }))
+			{
+				RCLCPP_FATAL(get_logger(), "All joints must have the same command mode.");
+				return hardware_interface::return_type::ERROR;
 			}
 		}
 
@@ -539,8 +531,20 @@ namespace TechControlInterface
 	{
 		for (std::size_t i = 0; i < m_NumJoints; i++)
 		{
-			m_InterfacePositionStates[i] = m_InTechDrive[i]->PositionActualValue;
-			m_InterfaceVelocityStates[i] = m_InTechDrive[i]->VelocityActualValue;
+			if (!strcmp(m_DriverNames[i].c_str(), STEPPER_DRIVE_NAME))
+			{
+				m_InterfacePositionStates[i] = m_InTechDrive[i]->PositionActualValue;
+				m_InterfaceVelocityStates[i] = m_InTechDrive[i]->VelocityActualValue;
+			}
+			else if (!strcmp(m_DriverNames[i].c_str(), TECH_DRIVE_NAME))
+			{
+				m_InterfacePositionStates[i] = m_InTechDrive[i]->PositionActualValue / TECH_MOTOR_ENCODER_RESOLUTION * std::numbers::pi;
+				m_InterfaceVelocityStates[i] = m_InTechDrive[i]->VelocityActualValue / TECH_MOTOR_ENCODER_RESOLUTION * std::numbers::pi;
+			}
+			else
+			{
+				RCLCPP_WARN(get_logger(), "name %s", m_DriverNames[i].c_str());
+			}
 			// RCLCPP_INFO(get_logger(), "setting %s Pos: %f, Vel: %f", std::string(info_.joints[i].name).c_str(), m_InterfacePositionStates[i], m_InterfaceVelocityStates[i]);
 		}
 
@@ -557,9 +561,9 @@ namespace TechControlInterface
 			// Thread of this function is seperated form loop. The command really write into motor drive in loop.
 			if (!std::isnan(m_InterfacePositionCommands[i]))
 			{
-				m_TargetPosition[i] = m_InterfacePositionCommands[i];
+				m_TargetPosition[i] = m_InterfacePositionCommands[i] * TECH_MOTOR_ENCODER_RESOLUTION / std::numbers::pi;
 			}
-			m_TargetVelocity[i] = m_InterfaceVelocityCommands[i];
+			m_TargetVelocity[i] = m_InterfaceVelocityCommands[i] * TECH_MOTOR_ENCODER_RESOLUTION / std::numbers::pi;
 		}
 
 		return hardware_interface::return_type::OK;
@@ -598,7 +602,7 @@ namespace TechControlInterface
 		// }
 		while (1)
 		{
-            osal_usleep(100000); // Sleep for 100ms to reduce CPU usage
+			osal_usleep(100000); // Sleep for 100ms to reduce CPU usage
 		}
 		// Close the ethercat connection
 		ec_close();
@@ -619,10 +623,6 @@ namespace TechControlInterface
 				ec_readstate();
 				for (slave = 1; slave <= ec_slavecount; slave++)
 				{
-					if (ec_slave[slave].name != EXPECTED_SLAVE_NAME)
-					{
-						continue;
-					}
 					if ((ec_slave[slave].group == currentgroup) &&
 						(ec_slave[slave].state != EC_STATE_OPERATIONAL))
 					{
@@ -704,7 +704,7 @@ namespace TechControlInterface
 		m_TOff = 0;
 
 		// Connect struct pointers to I/O
-		for (size_t i = 1; i < (m_NumJoints + 1); ++i)
+		for (size_t i = 1; i <= m_NumJoints; ++i)
 		{
 			m_InTechDrive.push_back((InTechDrive *)ec_slave[i].inputs);
 			m_OutTechDrive.push_back((OutTechDrive *)ec_slave[i].outputs);
@@ -808,6 +808,15 @@ namespace TechControlInterface
 								m_OutTechDrive[i - 1]->ControlWord = 0b1011;
 							}
 						}
+						// RCLCPP_INFO(get_logger(), "Slave= %d\tStatus= %x\tControlWord= %x\tMode= %x\tPosition=%d\tVelocity=%d\tTarget Velocity=%d\tTarget Position=%d",
+						// 	i,
+						// 	m_InTechDrive[i - 1]->StatusWord,
+						// 	m_OutTechDrive[i - 1]->ControlWord,
+						// 	m_InTechDrive[i - 1]->OpModeDisplay,
+						// 	m_InTechDrive[i - 1]->PositionActualValue,
+						// 	m_InTechDrive[i - 1]->VelocityActualValue,
+						// 	m_OutTechDrive[i - 1]->TargetVelocity,
+						// 	m_OutTechDrive[i - 1]->TargetPosition);
 					}
 				}
 				else

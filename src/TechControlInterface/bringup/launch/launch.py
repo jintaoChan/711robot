@@ -103,8 +103,8 @@ def generate_launch_description():
     )
 
     ui = Node(
-        package="ros2_humble_qt_demo",
-        executable="ros2_humble_qt_demo"
+        package="TechRobotUI",
+        executable="TechRobotUI"
     )
 
     # Delay rviz start after `joint_state_broadcaster`
@@ -130,7 +130,7 @@ def generate_launch_description():
         robot_controller_spawner,
         # delay_rviz_after_joint_state_broadcaster_spawner,
         delay_joint_state_broadcaster_after_robot_controller_spawner,
-        ui,
+        # ui,
     ]
 
     return LaunchDescription(declared_arguments + nodes)
