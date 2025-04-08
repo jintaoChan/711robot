@@ -13,6 +13,7 @@ controller_manager:
 store_manipulator_controller:
   ros__parameters:
     joints:
+      # - joint1
       - joint2
       - joint3
       - joint4
@@ -24,6 +25,12 @@ store_manipulator_controller:
       - velocity
     allow_nonzero_velocity_at_trajectory_end: true
     gains:
+      # joint1:
+      #   p: 10.0
+      #   i: 0.0
+      #   d: 1.0
+      #   i_clamp: 1.0
+      #   ff_velocity_scale: 1.0
       joint2:
         p: 10.0
         i: 0.0
