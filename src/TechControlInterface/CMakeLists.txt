@@ -8,6 +8,7 @@ endif()
 
 # find dependencies
 set(THIS_PACKAGE_INCLUDE_DEPENDS
+  ament_cmake
   hardware_interface
   controller_interface
   pluginlib
@@ -16,6 +17,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   trajectory_msgs
   sensor_msgs
   std_msgs
+  ethercat_driver
+  ethercat_interface
+  ethercat_generic_cia402_drive
 )
 # Specify the required version of ros2_control
 find_package(controller_manager 4.0.0)
@@ -68,7 +72,7 @@ install(
 )
 
 install(
-  DIRECTORY description/ros2_control description/urdf
+  DIRECTORY description/ros2_control description/urdf description/drive_xml
   DESTINATION share/${PROJECT_NAME}
 )
 install(

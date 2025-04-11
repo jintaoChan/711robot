@@ -5,51 +5,30 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-TechPositionController:
+
+# EtherCATController:
+#   ros__parameters:
+#     type: ethercat_driver/EthercatDriver
+#     joints:
+#       - joint2
+#       - joint3
+#       - joint4
+#       - joint5
+#       - joint6
+#     command_interfaces:
+#       - position
+#       - velocity
+
+#     state_interfaces:
+#       - position
+#       - velocity
+
+
+trajectory_controller:
   ros__parameters:
-    type: TechControlInterface/TechController
-    joints:
-      - joint2
-      - joint3
-      - joint4
-      - joint5
-      - joint6
     command_interfaces:
       - position
-
     state_interfaces:
       - position
-      - velocity
-
-TechVelocityController:
-  ros__parameters:
-    type: TechControlInterface/TechController
     joints:
       - joint2
-      - joint3
-      - joint4
-      - joint5
-      - joint6
-    command_interfaces:
-      - velocity
-
-    state_interfaces:
-      - position
-      - velocity
-
-TechDisableController:
-  ros__parameters:
-    type: TechControlInterface/TechController
-    joints:
-      - joint2
-      - joint3
-      - joint4
-      - joint5
-      - joint6
-    command_interfaces:
-      - disable
-
-    state_interfaces:
-      - position
-      - velocity
-

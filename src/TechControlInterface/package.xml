@@ -25,6 +25,9 @@
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
 
+  <exec_depend>ethercat_driver</exec_depend>
+  <exec_depend>ethercat_interface</exec_depend>
+  <exec_depend>ethercat_generic_cia402_drive</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>forward_command_controller</exec_depend>
   <exec_depend>joint_state_broadcaster</exec_depend>

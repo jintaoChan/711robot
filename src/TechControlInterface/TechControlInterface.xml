@@ -1,6 +1,6 @@
 <library path="TechControlInterface">
-  <class name="TechControlInterface/TechHardwareInterface"
-         type="TechControlInterface::TechHardwareInterface"
+  <class name="ethercat_driver/EthercatDriver"
+         type="ethercat_driver::EthercatDriver"
          base_class_type="hardware_interface::SystemInterface">
     <description>
       A ros2_control interface for Tech motor drivers.

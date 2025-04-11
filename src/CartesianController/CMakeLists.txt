@@ -24,24 +24,24 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   warehouse_ros_sqlite
 )
 
-foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
-  find_package(${Dependency} REQUIRED)
-endforeach()
+# foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
+#   find_package(${Dependency} REQUIRED)
+# endforeach()
 
 
-add_executable(${PROJECT_NAME} src/test.cpp)
+# add_executable(${PROJECT_NAME} src/test.cpp)
 
-# target_include_directories(${PROJECT_NAME}
-#   PUBLIC
-#   src/include
+# # target_include_directories(${PROJECT_NAME}
+# #   PUBLIC
+# #   src/include
+# # )
+# ament_target_dependencies(
+#   ${PROJECT_NAME}
+#   ${THIS_PACKAGE_INCLUDE_DEPENDS}
 # )
-ament_target_dependencies(
-  ${PROJECT_NAME}
-  ${THIS_PACKAGE_INCLUDE_DEPENDS}
-)
 
-install(TARGETS ${PROJECT_NAME}
-  DESTINATION lib/${PROJECT_NAME}
-)
+# install(TARGETS ${PROJECT_NAME}
+#   DESTINATION lib/${PROJECT_NAME}
+# )
 
-ament_package()
+# ament_package()
